@@ -1,11 +1,32 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { MantineProvider, createTheme, localStorageColorSchemeManager } from '@mantine/core';
+import {
+  MantineProvider,
+  createTheme,
+  localStorageColorSchemeManager,
+  type MantineColorsTuple,
+} from '@mantine/core';
 import '@mantine/core/styles.css';
 import App from './App';
 
+// Neon lime — very bright, used for primary accents.
+const neon: MantineColorsTuple = [
+  '#f6ffd6',
+  '#ecff9e',
+  '#dcff55',
+  '#ccff00',
+  '#c2f300',
+  '#b9e600',
+  '#a8d200',
+  '#8fb600',
+  '#759300',
+  '#566c00',
+];
+
 const theme = createTheme({
-  primaryColor: 'indigo',
+  primaryColor: 'neon',
+  primaryShade: { light: 5, dark: 3 },
+  colors: { neon },
   fontFamily:
     'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   fontFamilyMonospace:

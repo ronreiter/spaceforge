@@ -88,7 +88,7 @@ export function Chat({
           {visible.length === 0 && (
             <Stack gap="xs">
               <Group gap={6} mb={4}>
-                <IconSparkles size={14} color="var(--mantine-color-indigo-5)" />
+                <IconSparkles size={14} color="var(--mantine-color-neon-3)" />
                 <Text size="sm" c="dimmed">
                   Describe the site you want. Spaceforge writes HTML/CSS/JS in your browser.
                 </Text>
@@ -116,8 +116,8 @@ export function Chat({
               p="xs"
               radius="md"
               withBorder={m.role === 'assistant'}
-              bg={m.role === 'user' ? 'indigo.6' : undefined}
-              c={m.role === 'user' ? 'white' : undefined}
+              bg={m.role === 'user' ? 'neon.3' : undefined}
+              c={m.role === 'user' ? 'dark.9' : undefined}
               maw="90%"
               style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}
             >
@@ -209,7 +209,9 @@ export function Chat({
           mt="xs"
           size="sm"
           leftSection={buttonIcon}
-          color={sendState === 'loading-model' || sendState === 'queued' ? 'blue' : 'indigo'}
+          color={
+            sendState === 'loading-model' || sendState === 'queued' ? 'blue' : undefined
+          }
         >
           {buttonLabel}
         </Button>

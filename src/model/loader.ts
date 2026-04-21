@@ -38,7 +38,7 @@ export async function loadModel(
       });
 
       await generator(messages, {
-        max_new_tokens: 4096,
+        max_new_tokens: 16384,
         do_sample: true,
         temperature: 0.6,
         top_p: 0.9,
