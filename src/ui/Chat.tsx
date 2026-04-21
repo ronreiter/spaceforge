@@ -1,12 +1,34 @@
 import { useState, useEffect, useRef } from 'react';
+import {
+  Stack,
+  Paper,
+  Text,
+  Textarea,
+  Button,
+  ScrollArea,
+  Group,
+  Badge,
+  Loader,
+  Box,
+} from '@mantine/core';
+import {
+  IconSend,
+  IconHourglassHigh,
+  IconBolt,
+  IconSparkles,
+} from '@tabler/icons-react';
 import type { ChatMessage } from '../storage/files';
+
+export type ChatSendState = 'idle' | 'queued' | 'generating' | 'loading-model';
 
 export type ChatProps = {
   messages: ChatMessage[];
-  disabled: boolean;
+  sendState: ChatSendState;
   statusLine?: string;
   tokensPerSecond?: number;
+  queuedPrompt?: string | null;
   onSend: (text: string) => void;
+  onClearQueue: () => void;
 };
 
 const SUGGESTIONS = [
@@ -16,143 +38,182 @@ const SUGGESTIONS = [
   'A three-page site for a local bakery — home, menu, contact.',
 ];
 
-export function Chat({ messages, disabled, statusLine, tokensPerSecond, onSend }: ChatProps) {
+export function Chat({
+  messages,
+  sendState,
+  statusLine,
+  tokensPerSecond,
+  queuedPrompt,
+  onSend,
+  onClearQueue,
+}: ChatProps) {
   const [input, setInput] = useState('');
-  const scroller = useRef<HTMLDivElement>(null);
+  const viewport = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    scroller.current?.scrollTo({ top: scroller.current.scrollHeight });
-  }, [messages, statusLine]);
+    viewport.current?.scrollTo({ top: viewport.current.scrollHeight });
+  }, [messages, statusLine, queuedPrompt]);
 
   function submit() {
     const text = input.trim();
-    if (!text || disabled) return;
+    if (!text) return;
+    if (sendState === 'generating') return; // block while generating; queue only while loading
     onSend(text);
     setInput('');
   }
 
   const visible = messages.filter((m) => m.role !== 'system');
+  const buttonLabel =
+    sendState === 'loading-model'
+      ? 'Send (queues until ready)'
+      : sendState === 'queued'
+      ? 'Send (queues until ready)'
+      : sendState === 'generating'
+      ? 'Generating…'
+      : 'Send  (⌘⏎)';
+
+  const buttonIcon =
+    sendState === 'generating' ? (
+      <Loader size={14} color="white" />
+    ) : sendState === 'loading-model' || sendState === 'queued' ? (
+      <IconHourglassHigh size={14} />
+    ) : (
+      <IconSend size={14} />
+    );
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        background: '#0d1117',
-        color: '#e6edf3',
-      }}
-    >
-      <div
-        ref={scroller}
+    <Stack h="100%" gap={0}>
+      <ScrollArea viewportRef={viewport} style={{ flex: 1 }} type="auto">
+        <Stack p="sm" gap="xs">
+          {visible.length === 0 && (
+            <Stack gap="xs">
+              <Group gap={6} mb={4}>
+                <IconSparkles size={14} color="var(--mantine-color-indigo-5)" />
+                <Text size="sm" c="dimmed">
+                  Describe the site you want. Spaceforge writes HTML/CSS/JS in your browser.
+                </Text>
+              </Group>
+              {SUGGESTIONS.map((s) => (
+                <Paper
+                  key={s}
+                  withBorder
+                  p="xs"
+                  radius="sm"
+                  onClick={() => sendState !== 'generating' && onSend(s)}
+                  style={{
+                    cursor: sendState === 'generating' ? 'not-allowed' : 'pointer',
+                    opacity: sendState === 'generating' ? 0.5 : 1,
+                  }}
+                >
+                  <Text size="xs">{s}</Text>
+                </Paper>
+              ))}
+            </Stack>
+          )}
+          {visible.map((m, i) => (
+            <Paper
+              key={i}
+              p="xs"
+              radius="md"
+              withBorder={m.role === 'assistant'}
+              bg={m.role === 'user' ? 'indigo.6' : undefined}
+              c={m.role === 'user' ? 'white' : undefined}
+              maw="90%"
+              style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}
+            >
+              <Text
+                size="sm"
+                style={{
+                  whiteSpace: 'pre-wrap',
+                  lineHeight: 1.55,
+                  color: 'inherit',
+                }}
+              >
+                {m.content || <span style={{ opacity: 0.5 }}>…</span>}
+              </Text>
+            </Paper>
+          ))}
+          {queuedPrompt && (
+            <Paper p="xs" radius="md" withBorder style={{ alignSelf: 'flex-end', maxWidth: '90%' }}>
+              <Group justify="space-between" gap="xs" wrap="nowrap">
+                <Group gap={6} wrap="nowrap">
+                  <IconHourglassHigh size={14} />
+                  <Text size="xs" c="dimmed">
+                    Queued — runs once model is ready
+                  </Text>
+                </Group>
+                <Text
+                  size="xs"
+                  style={{ cursor: 'pointer', textDecoration: 'underline' }}
+                  c="dimmed"
+                  onClick={onClearQueue}
+                >
+                  cancel
+                </Text>
+              </Group>
+              <Text size="sm" mt={4} style={{ whiteSpace: 'pre-wrap' }}>
+                {queuedPrompt}
+              </Text>
+            </Paper>
+          )}
+          {statusLine && (
+            <Group gap={6}>
+              <IconBolt size={12} color="var(--mantine-color-dimmed)" />
+              <Text size="xs" c="dimmed" fs="italic">
+                {statusLine}
+                {tokensPerSecond && tokensPerSecond > 0
+                  ? ` · ${tokensPerSecond.toFixed(1)} tok/s`
+                  : ''}
+              </Text>
+            </Group>
+          )}
+        </Stack>
+      </ScrollArea>
+
+      <Box
+        p="sm"
         style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: 12,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 10,
-          minHeight: 0,
+          borderTop: '1px solid var(--mantine-color-default-border)',
         }}
       >
-        {visible.length === 0 && (
-          <div style={{ color: '#7d8590', fontSize: 13, lineHeight: 1.55 }}>
-            <p style={{ marginBottom: 10 }}>
-              Describe the site you want. Spaceforge will produce HTML/CSS/JS files in your browser.
-            </p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => !disabled && onSend(s)}
-                  disabled={disabled}
-                  style={suggestionBtn}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        {visible.map((m, i) => (
-          <div
-            key={i}
-            style={{
-              background: m.role === 'user' ? '#1f6feb' : '#161b22',
-              color: m.role === 'user' ? '#fff' : '#e6edf3',
-              padding: '8px 12px',
-              borderRadius: 8,
-              maxWidth: '90%',
-              alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
-              whiteSpace: 'pre-wrap',
-              fontSize: 13,
-              lineHeight: 1.55,
-              border: m.role === 'assistant' ? '1px solid #30363d' : 'none',
-            }}
+        {sendState === 'loading-model' && !queuedPrompt && (
+          <Badge
+            size="xs"
+            color="blue"
+            variant="light"
+            leftSection={<IconHourglassHigh size={10} />}
+            mb={6}
           >
-            {m.content || (m.role === 'assistant' ? <span style={{ opacity: 0.5 }}>…</span> : null)}
-          </div>
-        ))}
-        {statusLine && (
-          <div style={{ color: '#7d8590', fontSize: 12, fontStyle: 'italic' }}>
-            {statusLine}
-            {tokensPerSecond ? ` · ${tokensPerSecond.toFixed(1)} tok/s` : ''}
-          </div>
+            Model loading — you can type and send; I'll run it as soon as the model is ready
+          </Badge>
         )}
-      </div>
-      <div style={{ padding: 12, borderTop: '1px solid #30363d' }}>
-        <textarea
+        <Textarea
           value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={disabled ? 'Model is loading…' : 'Message Spaceforge…'}
-          disabled={disabled}
+          onChange={(e) => setInput(e.currentTarget.value)}
+          placeholder="Message Spaceforge…"
+          autosize
+          minRows={3}
+          maxRows={8}
+          disabled={sendState === 'generating'}
           onKeyDown={(e) => {
-            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') submit();
-          }}
-          style={{
-            width: '100%',
-            height: 80,
-            background: '#161b22',
-            color: '#e6edf3',
-            border: '1px solid #30363d',
-            borderRadius: 6,
-            padding: 8,
-            fontSize: 13,
-            resize: 'vertical',
-            fontFamily: 'inherit',
-            boxSizing: 'border-box',
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+              e.preventDefault();
+              submit();
+            }
           }}
         />
-        <button
+        <Button
           onClick={submit}
-          disabled={disabled || !input.trim()}
-          style={{
-            marginTop: 8,
-            width: '100%',
-            padding: 8,
-            background: disabled || !input.trim() ? '#30363d' : '#238636',
-            color: '#fff',
-            border: 'none',
-            borderRadius: 6,
-            cursor: disabled || !input.trim() ? 'not-allowed' : 'pointer',
-            fontSize: 14,
-          }}
+          disabled={sendState === 'generating' || !input.trim()}
+          fullWidth
+          mt="xs"
+          size="sm"
+          leftSection={buttonIcon}
+          color={sendState === 'loading-model' || sendState === 'queued' ? 'blue' : 'indigo'}
         >
-          Send  (⌘⏎)
-        </button>
-      </div>
-    </div>
+          {buttonLabel}
+        </Button>
+      </Box>
+    </Stack>
   );
 }
-
-const suggestionBtn: React.CSSProperties = {
-  textAlign: 'left',
-  background: '#161b22',
-  color: '#e6edf3',
-  border: '1px solid #30363d',
-  borderRadius: 6,
-  padding: '6px 10px',
-  cursor: 'pointer',
-  fontSize: 12,
-  lineHeight: 1.4,
-};

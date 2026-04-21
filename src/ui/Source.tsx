@@ -1,5 +1,23 @@
 import { useState, useMemo, useEffect } from 'react';
 import Editor from '@monaco-editor/react';
+import {
+  Stack,
+  Group,
+  Button,
+  ActionIcon,
+  Text,
+  ScrollArea,
+  UnstyledButton,
+  Box,
+  Center,
+  useComputedColorScheme,
+} from '@mantine/core';
+import {
+  IconFilePlus,
+  IconDownload,
+  IconTrash,
+  IconFileCode,
+} from '@tabler/icons-react';
 import { triggerDownload } from '../storage/zip';
 
 export type SourceProps = {
@@ -22,6 +40,8 @@ function languageFor(path: string): string {
 export function Source({ files, onFileChange, onFileDelete, onFileCreate }: SourceProps) {
   const paths = useMemo(() => Object.keys(files).sort(), [files]);
   const [selected, setSelected] = useState<string | null>(paths[0] ?? null);
+  const computed = useComputedColorScheme('dark');
+  const monacoTheme = computed === 'dark' ? 'vs-dark' : 'vs-light';
 
   useEffect(() => {
     if (!paths.length) {
@@ -59,90 +79,107 @@ export function Source({ files, onFileChange, onFileDelete, onFileCreate }: Sour
   }
 
   return (
-    <div
-      style={{
-        height: '100%',
-        display: 'flex',
-        background: '#0d1117',
-        color: '#e6edf3',
-      }}
-    >
-      <div
+    <Group h="100%" gap={0} align="stretch" wrap="nowrap">
+      <Stack
+        w={240}
+        gap={0}
         style={{
-          width: 220,
-          borderRight: '1px solid #30363d',
-          display: 'flex',
-          flexDirection: 'column',
+          borderRight: '1px solid var(--mantine-color-default-border)',
         }}
       >
-        <div
+        <Box
+          p="xs"
           style={{
-            padding: 8,
-            borderBottom: '1px solid #30363d',
-            display: 'flex',
-            gap: 6,
+            borderBottom: '1px solid var(--mantine-color-default-border)',
           }}
         >
-          <button onClick={onNewFile} style={treeBtn}>
-            + new
-          </button>
-        </div>
-        <div style={{ flex: 1, overflowY: 'auto', padding: 4, minHeight: 0 }}>
-          {paths.length === 0 && (
-            <div style={{ color: '#7d8590', padding: 12, fontSize: 12 }}>No files yet.</div>
-          )}
-          {paths.map((p) => (
-            <div
-              key={p}
-              onClick={() => setSelected(p)}
-              style={{
-                padding: '6px 8px',
-                borderRadius: 4,
-                cursor: 'pointer',
-                background: p === active ? '#1f6feb' : 'transparent',
-                fontSize: 12,
-                fontFamily: 'SF Mono, Cascadia Code, monospace',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: 4,
-              }}
-            >
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{p}</span>
-              <span style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDownload(p);
+          <Button
+            size="xs"
+            variant="light"
+            leftSection={<IconFilePlus size={14} />}
+            onClick={onNewFile}
+            fullWidth
+          >
+            New file
+          </Button>
+        </Box>
+        <ScrollArea style={{ flex: 1 }} type="auto">
+          <Stack gap={2} p={4}>
+            {paths.length === 0 && (
+              <Text c="dimmed" size="xs" p="sm">
+                No files yet.
+              </Text>
+            )}
+            {paths.map((p) => {
+              const isActive = p === active;
+              return (
+                <Group
+                  key={p}
+                  gap={4}
+                  wrap="nowrap"
+                  p={4}
+                  align="center"
+                  style={{
+                    borderRadius: 4,
+                    background: isActive ? 'var(--mantine-color-indigo-filled)' : undefined,
+                    color: isActive ? 'white' : undefined,
                   }}
-                  style={miniBtn}
-                  title="Download"
                 >
-                  ↓
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(p);
-                  }}
-                  style={{ ...miniBtn, color: '#f85149' }}
-                  title="Delete"
-                >
-                  ×
-                </button>
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
+                  <UnstyledButton
+                    onClick={() => setSelected(p)}
+                    style={{
+                      flex: 1,
+                      overflow: 'hidden',
+                      minWidth: 0,
+                    }}
+                  >
+                    <Group gap={4} wrap="nowrap">
+                      <IconFileCode size={12} style={{ flexShrink: 0 }} />
+                      <Text
+                        size="xs"
+                        ff="monospace"
+                        style={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          color: 'inherit',
+                        }}
+                      >
+                        {p}
+                      </Text>
+                    </Group>
+                  </UnstyledButton>
+                  <ActionIcon
+                    size="xs"
+                    variant="subtle"
+                    c={isActive ? 'white' : 'dimmed'}
+                    onClick={() => onDownload(p)}
+                    aria-label="Download"
+                  >
+                    <IconDownload size={12} />
+                  </ActionIcon>
+                  <ActionIcon
+                    size="xs"
+                    variant="subtle"
+                    color="red"
+                    onClick={() => onDelete(p)}
+                    aria-label="Delete"
+                  >
+                    <IconTrash size={12} />
+                  </ActionIcon>
+                </Group>
+              );
+            })}
+          </Stack>
+        </ScrollArea>
+      </Stack>
+      <Box style={{ flex: 1, minWidth: 0 }}>
         {active ? (
           <Editor
             path={active}
             defaultLanguage={languageFor(active)}
             language={languageFor(active)}
             value={files[active]}
-            theme="vs-dark"
+            theme={monacoTheme}
             options={{
               fontSize: 13,
               minimap: { enabled: false },
@@ -152,27 +189,14 @@ export function Source({ files, onFileChange, onFileDelete, onFileCreate }: Sour
             onChange={(v) => onFileChange(active, v ?? '')}
           />
         ) : (
-          <div style={{ padding: 24, color: '#7d8590' }}>No file selected.</div>
+          <Center h="100%">
+            <Text c="dimmed" size="sm">
+              No file selected.
+            </Text>
+          </Center>
         )}
-      </div>
-    </div>
+      </Box>
+    </Group>
   );
 }
 
-const treeBtn: React.CSSProperties = {
-  background: '#238636',
-  color: '#fff',
-  border: 'none',
-  borderRadius: 4,
-  padding: '4px 10px',
-  cursor: 'pointer',
-  fontSize: 12,
-};
-const miniBtn: React.CSSProperties = {
-  background: 'transparent',
-  color: '#e6edf3',
-  border: 'none',
-  cursor: 'pointer',
-  fontSize: 12,
-  padding: '0 4px',
-};

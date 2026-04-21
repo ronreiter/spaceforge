@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { AppShell, Tabs, Box } from '@mantine/core';
+import { IconEye, IconCode } from '@tabler/icons-react';
 import { BrowserGate } from './ui/BrowserGate';
 import { TopBar } from './ui/TopBar';
-import { Chat } from './ui/Chat';
+import { Chat, type ChatSendState } from './ui/Chat';
 import { Preview } from './ui/Preview';
 import { Source } from './ui/Source';
 import {
@@ -52,10 +54,14 @@ function AppInner() {
   const [downloaded, setDownloaded] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [tokensPerSec, setTps] = useState<number>(0);
+  const [queuedPrompt, setQueuedPrompt] = useState<string | null>(null);
 
   const fileBuffers = useRef<Record<string, string>>({});
 
-  // Load/swap model whenever modelId changes.
+  // Per-file progress aggregation. transformers.js emits one stream of progress
+  // events per shard; we aggregate them so the bar reflects overall load.
+  const fileProgress = useRef<Map<string, { loaded: number; total: number }>>(new Map());
+
   useEffect(() => {
     const entry = getModel(modelId) ?? fallbackEntry(modelId);
     localStorage.setItem(MODEL_STORAGE_KEY, modelId);
@@ -63,19 +69,32 @@ function AppInner() {
     setStatus(`Loading ${entry.label}…`);
     setProgressPct(undefined);
     setGenerator(null);
+    fileProgress.current = new Map();
 
     let cancelled = false;
     loadModel(entry, (p: ProgressInfo) => {
       if (cancelled) return;
-      if (p.status === 'progress' && p.loaded && p.total) {
-        const pct = (p.loaded / p.total) * 100;
+      if (p.status === 'progress' && p.file && p.loaded !== undefined && p.total !== undefined) {
+        fileProgress.current.set(p.file, { loaded: p.loaded, total: p.total });
+        let loaded = 0;
+        let total = 0;
+        for (const { loaded: l, total: t } of fileProgress.current.values()) {
+          loaded += l;
+          total += t;
+        }
+        const pct = total > 0 ? (loaded / total) * 100 : 0;
         setProgressPct(pct);
-        setStatus(`Downloading ${entry.label}: ${pct.toFixed(0)}%`);
-      } else if (p.status === 'done') {
-        setStatus(`Preparing ${entry.label}…`);
+        const mb = (loaded / (1024 * 1024)).toFixed(0);
+        const totalMb = (total / (1024 * 1024)).toFixed(0);
+        setStatus(`Downloading ${entry.label}: ${pct.toFixed(1)}% (${mb} / ${totalMb} MB)`);
+      } else if (p.status === 'done' && p.file) {
+        const entryProg = fileProgress.current.get(p.file);
+        if (entryProg) entryProg.loaded = entryProg.total;
       } else if (p.status === 'ready') {
         setProgressPct(undefined);
         setStatus(`${entry.label} ready`);
+      } else if (p.status === 'initiate' && p.file) {
+        setStatus(`Initializing ${entry.label}…`);
       }
     })
       .then((g) => {
@@ -107,92 +126,113 @@ function AppInner() {
     setSite((s) => (s.model === modelId ? s : { ...s, model: modelId }));
   }, [modelId]);
 
-  async function onSend(text: string) {
-    if (!generator || busy) return;
-    setBusy(true);
+  const runPrompt = useCallback(
+    async (text: string) => {
+      if (!generator) return;
+      setBusy(true);
 
-    const userMsg: ChatMessage = { role: 'user', content: text };
-    const snapshot: SiteState = {
-      ...site,
-      chatHistory: [...site.chatHistory, userMsg],
-    };
+      const userMsg: ChatMessage = { role: 'user', content: text };
+      const snapshot: SiteState = {
+        ...site,
+        chatHistory: [...site.chatHistory, userMsg],
+      };
 
-    setSite((s) => ({
-      ...s,
-      chatHistory: [...s.chatHistory, userMsg, { role: 'assistant', content: '' }],
-    }));
+      setSite((s) => ({
+        ...s,
+        chatHistory: [...s.chatHistory, userMsg, { role: 'assistant', content: '' }],
+      }));
 
-    let tokens = 0;
-    const t0 = performance.now();
-    const tick = setInterval(() => {
-      const sec = (performance.now() - t0) / 1000;
-      setTps(sec > 0 ? tokens / sec : 0);
-    }, 250);
+      let tokens = 0;
+      const t0 = performance.now();
+      const tick = setInterval(() => {
+        const sec = (performance.now() - t0) / 1000;
+        setTps(sec > 0 ? tokens / sec : 0);
+      }, 250);
 
-    const entry = getModel(modelId) ?? fallbackEntry(modelId);
+      const entry = getModel(modelId) ?? fallbackEntry(modelId);
 
-    await runGeneration(generator, entry, snapshot, text, {
-      onProse: (chunk) => {
-        tokens += chunk.length / 4;
-        setSite((s) => {
-          const h = [...s.chatHistory];
-          const last = h[h.length - 1];
-          if (last && last.role === 'assistant') {
-            h[h.length - 1] = { ...last, content: last.content + chunk };
-          }
-          return { ...s, chatHistory: h };
-        });
-      },
-      onFileStart: (path) => {
-        fileBuffers.current[path] = '';
-      },
-      onFileChunk: (path, chunk) => {
-        tokens += chunk.length / 4;
-        fileBuffers.current[path] = (fileBuffers.current[path] ?? '') + chunk;
-      },
-      onFileEnd: (path) => {
-        const buf = fileBuffers.current[path] ?? '';
-        delete fileBuffers.current[path];
-        setSite((s) => {
-          try {
-            return writeFile(s, path, buf);
-          } catch {
-            return s;
-          }
-        });
-      },
-      onFileTruncated: (path) => {
-        delete fileBuffers.current[path];
-        setSite((s) => {
-          const h = [...s.chatHistory];
-          const last = h[h.length - 1];
-          if (last && last.role === 'assistant') {
-            h[h.length - 1] = {
-              ...last,
-              content: last.content + `\n\n[file "${path}" was cut off]`,
-            };
-          }
-          return { ...s, chatHistory: h };
-        });
-      },
-      onComplete: () => {
-        setBusy(false);
-        clearInterval(tick);
-        setTps(0);
-      },
-      onError: (err) => {
-        setBusy(false);
-        clearInterval(tick);
-        setTps(0);
-        setSite((s) => ({
-          ...s,
-          chatHistory: [
-            ...s.chatHistory,
-            { role: 'assistant', content: `Error: ${err.message}` },
-          ],
-        }));
-      },
-    });
+      await runGeneration(generator, entry, snapshot, text, {
+        onProse: (chunk) => {
+          tokens += chunk.length / 4;
+          setSite((s) => {
+            const h = [...s.chatHistory];
+            const last = h[h.length - 1];
+            if (last && last.role === 'assistant') {
+              h[h.length - 1] = { ...last, content: last.content + chunk };
+            }
+            return { ...s, chatHistory: h };
+          });
+        },
+        onFileStart: (path) => {
+          fileBuffers.current[path] = '';
+        },
+        onFileChunk: (path, chunk) => {
+          tokens += chunk.length / 4;
+          fileBuffers.current[path] = (fileBuffers.current[path] ?? '') + chunk;
+        },
+        onFileEnd: (path) => {
+          const buf = fileBuffers.current[path] ?? '';
+          delete fileBuffers.current[path];
+          setSite((s) => {
+            try {
+              return writeFile(s, path, buf);
+            } catch {
+              return s;
+            }
+          });
+        },
+        onFileTruncated: (path) => {
+          delete fileBuffers.current[path];
+          setSite((s) => {
+            const h = [...s.chatHistory];
+            const last = h[h.length - 1];
+            if (last && last.role === 'assistant') {
+              h[h.length - 1] = {
+                ...last,
+                content: last.content + `\n\n[file "${path}" was cut off]`,
+              };
+            }
+            return { ...s, chatHistory: h };
+          });
+        },
+        onComplete: () => {
+          setBusy(false);
+          clearInterval(tick);
+          setTps(0);
+        },
+        onError: (err) => {
+          setBusy(false);
+          clearInterval(tick);
+          setTps(0);
+          setSite((s) => ({
+            ...s,
+            chatHistory: [
+              ...s.chatHistory,
+              { role: 'assistant', content: `Error: ${err.message}` },
+            ],
+          }));
+        },
+      });
+    },
+    [generator, modelId, site],
+  );
+
+  // Run queued prompt once the model becomes ready.
+  useEffect(() => {
+    if (queuedPrompt && statusKind === 'ready' && generator && !busy) {
+      const prompt = queuedPrompt;
+      setQueuedPrompt(null);
+      runPrompt(prompt);
+    }
+  }, [queuedPrompt, statusKind, generator, busy, runPrompt]);
+
+  function onSend(text: string) {
+    if (busy) return;
+    if (statusKind === 'ready' && generator) {
+      runPrompt(text);
+    } else {
+      setQueuedPrompt(text);
+    }
   }
 
   const onFileChange = (path: string, contents: string) =>
@@ -231,80 +271,103 @@ function AppInner() {
     const fresh = emptySite();
     fresh.model = modelId;
     setSite(fresh);
+    setQueuedPrompt(null);
     fileBuffers.current = {};
   }
 
-  const statusLine = busy ? 'Generating…' : undefined;
+  const sendState: ChatSendState = busy
+    ? 'generating'
+    : queuedPrompt
+    ? 'queued'
+    : statusKind === 'ready'
+    ? 'idle'
+    : 'loading-model';
+
+  const statusLine = busy
+    ? 'Generating…'
+    : queuedPrompt && statusKind === 'loading'
+    ? 'Queued — will run when model is ready'
+    : undefined;
 
   return (
-    <div
-      style={{
-        height: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        background: '#0d1117',
-      }}
+    <AppShell
+      header={{ height: 60 }}
+      padding={0}
+      styles={{ main: { height: '100vh', display: 'flex', flexDirection: 'column' } }}
     >
-      <TopBar
-        modelId={modelId}
-        downloaded={downloaded}
-        onModelChange={setModelId}
-        status={status}
-        statusKind={statusKind}
-        progressPct={progressPct}
-        onDownloadZip={onDownloadZip}
-        onStartFresh={onStartFresh}
-      />
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 0 }}>
-        <div style={{ width: 380, minWidth: 300, borderRight: '1px solid #30363d' }}>
-          <Chat
-            messages={site.chatHistory}
-            disabled={busy || statusKind !== 'ready'}
-            statusLine={statusLine}
-            tokensPerSecond={tokensPerSec}
-            onSend={onSend}
-          />
-        </div>
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <div
+      <AppShell.Header>
+        <TopBar
+          modelId={modelId}
+          downloaded={downloaded}
+          onModelChange={setModelId}
+          status={status}
+          statusKind={statusKind}
+          progressPct={progressPct}
+          onDownloadZip={onDownloadZip}
+          onStartFresh={onStartFresh}
+        />
+      </AppShell.Header>
+
+      <AppShell.Main>
+        <Box style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
+          <Box
+            w={380}
+            miw={300}
             style={{
+              borderRight: '1px solid var(--mantine-color-default-border)',
               display: 'flex',
-              gap: 4,
-              padding: 8,
-              borderBottom: '1px solid #30363d',
+              flexDirection: 'column',
+              minHeight: 0,
             }}
           >
-            <button onClick={() => setTab('preview')} style={tabBtn(tab === 'preview')}>
-              Preview
-            </button>
-            <button onClick={() => setTab('source')} style={tabBtn(tab === 'source')}>
-              Source
-            </button>
-          </div>
-          <div style={{ flex: 1, minHeight: 0 }}>
-            {tab === 'preview' ? (
-              <Preview files={site.files} />
-            ) : (
-              <Source
-                files={site.files}
-                onFileChange={onFileChange}
-                onFileDelete={onFileDelete}
-                onFileCreate={onFileCreate}
-              />
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+            <Chat
+              messages={site.chatHistory}
+              sendState={sendState}
+              statusLine={statusLine}
+              tokensPerSecond={tokensPerSec}
+              queuedPrompt={queuedPrompt}
+              onSend={onSend}
+              onClearQueue={() => setQueuedPrompt(null)}
+            />
+          </Box>
+          <Box
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              minWidth: 0,
+              minHeight: 0,
+            }}
+          >
+            <Tabs
+              value={tab}
+              onChange={(v) => v && setTab(v as 'preview' | 'source')}
+              variant="default"
+              style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
+            >
+              <Tabs.List>
+                <Tabs.Tab value="preview" leftSection={<IconEye size={14} />}>
+                  Preview
+                </Tabs.Tab>
+                <Tabs.Tab value="source" leftSection={<IconCode size={14} />}>
+                  Source
+                </Tabs.Tab>
+              </Tabs.List>
+              <Tabs.Panel value="preview" style={{ flex: 1, minHeight: 0 }}>
+                <Preview files={site.files} />
+              </Tabs.Panel>
+              <Tabs.Panel value="source" style={{ flex: 1, minHeight: 0 }}>
+                <Source
+                  files={site.files}
+                  onFileChange={onFileChange}
+                  onFileDelete={onFileDelete}
+                  onFileCreate={onFileCreate}
+                />
+              </Tabs.Panel>
+            </Tabs>
+          </Box>
+        </Box>
+      </AppShell.Main>
+    </AppShell>
   );
 }
-
-const tabBtn = (active: boolean): React.CSSProperties => ({
-  background: active ? '#1f6feb' : 'transparent',
-  color: active ? '#fff' : '#e6edf3',
-  border: '1px solid #30363d',
-  borderRadius: 6,
-  padding: '4px 14px',
-  cursor: 'pointer',
-  fontSize: 12,
-});

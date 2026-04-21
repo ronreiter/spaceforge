@@ -1,4 +1,20 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import {
+  Group,
+  ActionIcon,
+  TextInput,
+  Center,
+  Text,
+  Code,
+  Stack,
+  Box,
+} from '@mantine/core';
+import {
+  IconArrowLeft,
+  IconArrowRight,
+  IconRefresh,
+  IconWorld,
+} from '@tabler/icons-react';
 import { renderPage } from '../runtime/iframeRuntime';
 
 export type PreviewProps = {
@@ -65,87 +81,66 @@ export function Preview({ files }: PreviewProps) {
 
   if (!hasIndex) {
     return (
-      <div
-        style={{
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#7d8590',
-          padding: 24,
-          textAlign: 'center',
-          background: '#0d1117',
-        }}
-      >
-        Ask the assistant to build a site. The preview will appear here once there's an{' '}
-        <code>&nbsp;index.html</code>.
-      </div>
+      <Center h="100%" p="xl">
+        <Stack gap="xs" align="center" maw={420} ta="center">
+          <IconWorld size={32} stroke={1.5} color="var(--mantine-color-dimmed)" />
+          <Text c="dimmed" size="sm">
+            Ask the assistant to build a site. The preview will appear here once there's an{' '}
+            <Code>index.html</Code>.
+          </Text>
+        </Stack>
+      </Center>
     );
   }
 
   return (
-    <div
-      style={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        background: '#0d1117',
-      }}
-    >
-      <div
+    <Stack h="100%" gap={0}>
+      <Group
+        p="xs"
+        gap={6}
+        wrap="nowrap"
         style={{
-          display: 'flex',
-          gap: 6,
-          padding: 8,
-          borderBottom: '1px solid #30363d',
-          alignItems: 'center',
+          borderBottom: '1px solid var(--mantine-color-default-border)',
         }}
       >
-        <button onClick={back} disabled={cursor === 0} style={navBtn}>
-          ←
-        </button>
-        <button onClick={forward} disabled={cursor === history.length - 1} style={navBtn}>
-          →
-        </button>
-        <button onClick={reload} style={navBtn}>
-          ⟳
-        </button>
+        <ActionIcon variant="default" size="md" onClick={back} disabled={cursor === 0} aria-label="Back">
+          <IconArrowLeft size={14} />
+        </ActionIcon>
+        <ActionIcon
+          variant="default"
+          size="md"
+          onClick={forward}
+          disabled={cursor === history.length - 1}
+          aria-label="Forward"
+        >
+          <IconArrowRight size={14} />
+        </ActionIcon>
+        <ActionIcon variant="default" size="md" onClick={reload} aria-label="Reload">
+          <IconRefresh size={14} />
+        </ActionIcon>
         <form onSubmit={submitAddress} style={{ flex: 1 }}>
-          <input
+          <TextInput
+            size="xs"
             value={`spaceforge://site/${addressInput}`}
             onChange={(e) =>
-              setAddressInput(e.target.value.replace(/^spaceforge:\/\/site\//, ''))
+              setAddressInput(
+                e.currentTarget.value.replace(/^spaceforge:\/\/site\//, ''),
+              )
             }
-            style={{
-              width: '100%',
-              background: '#161b22',
-              color: '#e6edf3',
-              border: '1px solid #30363d',
-              borderRadius: 6,
-              padding: '6px 10px',
-              fontSize: 12,
-              fontFamily: 'SF Mono, Cascadia Code, monospace',
-              boxSizing: 'border-box',
+            styles={{
+              input: { fontFamily: 'var(--mantine-font-family-monospace)', fontSize: 11 },
             }}
           />
         </form>
-      </div>
-      <iframe
-        ref={iframeRef}
-        sandbox="allow-scripts"
-        style={{ flex: 1, border: 'none', background: '#fff' }}
-        title="Preview"
-      />
-    </div>
+      </Group>
+      <Box style={{ flex: 1, background: '#fff' }}>
+        <iframe
+          ref={iframeRef}
+          sandbox="allow-scripts"
+          style={{ width: '100%', height: '100%', border: 'none' }}
+          title="Preview"
+        />
+      </Box>
+    </Stack>
   );
 }
-
-const navBtn: React.CSSProperties = {
-  background: '#161b22',
-  color: '#e6edf3',
-  border: '1px solid #30363d',
-  borderRadius: 6,
-  padding: '4px 10px',
-  cursor: 'pointer',
-  fontSize: 13,
-};
