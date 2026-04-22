@@ -16,8 +16,32 @@ const styles = `:root {
   --pico-primary-500: var(--noir-gold);
   --pico-primary-600: var(--noir-gold-deep);
   --pico-primary-focus: rgba(201, 168, 106, 0.2);
+}
+
+/* Pico scopes its colour variables behind :root:not([data-theme=dark]),
+   which has higher specificity than a plain :root. Match that selector
+   so our overrides actually win. Spaceforge pins data-theme="light" on
+   the document so this branch always applies. */
+:root:not([data-theme=dark]) {
   --pico-color: var(--noir-ink);
   --pico-background-color: var(--noir-bg);
+  --pico-muted-color: var(--noir-muted);
+  --pico-h1-color: var(--noir-ink);
+  --pico-h2-color: var(--noir-gold);
+  --pico-h3-color: var(--noir-ink);
+  --pico-h4-color: var(--noir-ink);
+  --pico-h5-color: var(--noir-ink);
+  --pico-h6-color: var(--noir-ink);
+  --pico-primary: var(--noir-gold);
+  --pico-primary-hover: var(--noir-gold);
+  --pico-primary-focus: rgba(201, 168, 106, 0.25);
+  --pico-primary-underline: var(--noir-gold-deep);
+  --pico-card-background-color: var(--noir-panel);
+  --pico-card-border-color: var(--noir-border);
+  --pico-code-color: var(--noir-gold);
+  --pico-code-background-color: var(--noir-panel);
+  --pico-mark-color: var(--noir-bg);
+  --pico-mark-background-color: var(--noir-gold);
 }
 
 html, body { background: var(--noir-bg); }
@@ -130,10 +154,14 @@ main img {
 main article, main section {
   background: var(--noir-panel);
   border: 1px solid var(--noir-border);
+  color: var(--noir-ink);
   padding: 2rem;
   margin: 1.5rem 0;
   border-radius: 0;
 }
+main article *, main section * { color: inherit; }
+main article h2, main section h2 { color: var(--noir-gold); }
+main article a, main section a { color: var(--noir-gold); }
 main blockquote {
   border: 0;
   border-top: 1px solid var(--noir-gold);
