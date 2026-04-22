@@ -232,10 +232,14 @@ export function Chat({
           {visible.map((m, i) => (
             <Paper
               key={i}
-              p="xs"
+              p="sm"
               radius="md"
               withBorder={m.role === 'assistant'}
-              bg={m.role === 'user' ? 'neon.3' : undefined}
+              bg={
+                m.role === 'user'
+                  ? 'neon.3'
+                  : 'var(--mantine-color-default-hover)'
+              }
               c={m.role === 'user' ? 'dark.9' : undefined}
               maw="90%"
               style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}
