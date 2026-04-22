@@ -13,7 +13,9 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed:dev": "tsx db/seed-dev.ts",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "dev:local": "AUTH_DRIVER=dev DATABASE_URL=postgres://spaceforge:spaceforge@localhost:5432/spaceforge BLOB_DRIVER=fs next dev",
+    "dev:local:setup": "docker compose up -d && npm run db:migrate && DATABASE_URL=postgres://spaceforge:spaceforge@localhost:5432/spaceforge npm run db:seed:dev"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.2.4",

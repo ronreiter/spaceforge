@@ -51,21 +51,31 @@ npm run start      # serve the production build locally
 
 ## Local dev environment
 
-Spaceforge runs end-to-end locally with no cloud dependencies. The
-multi-tenant pieces (DB, object storage) have local drivers selected by
-env var:
+Spaceforge runs end-to-end locally with no cloud dependencies. One-shot:
 
 ```bash
-docker compose up -d       # local Postgres 16 on :5432 (optional for Phase 0)
-cp .env.example .env.local # then fill in keys you need
-npm run dev                # Next.js on :3000
+npm install
+npm run dev:local:setup   # docker compose up -d + db:migrate + db:seed:dev
+npm run dev:local         # Next.js on :3000 with AUTH_DRIVER=dev + FsBlobDriver
 ```
 
-Storage driver toggle:
+Open http://localhost:3000 — you're auto-signed in as the seeded dev
+user and land on the dashboard. Create a site, edit it, etc.
 
-- `BLOB_DRIVER=fs` (default) — writes to `.spaceforge-local/blob/`. No
-  network, no Docker, no token.
-- `BLOB_DRIVER=vercel` — real Vercel Blob. Needs `BLOB_READ_WRITE_TOKEN`.
+Driver toggles (set via env, defaults shown):
+
+- `AUTH_DRIVER=dev` — fixed fake user, no Clerk required. Set to
+  `clerk` to use real auth (needs keys in `.env.local`).
+- `BLOB_DRIVER=fs` — writes to `.spaceforge-local/blob/`. No network,
+  no Docker, no token. Set to `vercel` for real Vercel Blob in
+  preview/production.
+
+Useful sub-scripts:
+
+- `docker compose up -d` — just start Postgres.
+- `npm run db:migrate` — apply Drizzle migrations.
+- `npm run db:seed:dev` — ensure the dev user/team rows exist.
+- `npm run db:studio` — browse the DB in Drizzle Studio.
 
 ## Environment variables
 
