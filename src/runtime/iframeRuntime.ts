@@ -1,4 +1,4 @@
-import picoClasslessCss from '@picocss/pico/css/pico.classless.min.css?raw';
+import { picoClasslessCss } from './picoClassless.generated';
 import { isTemplate, renderTemplate, outputPath } from './nunjucksRender';
 import { isMarkdown, renderMarkdownPage } from './markdownRender';
 
