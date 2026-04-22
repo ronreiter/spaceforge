@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import { db, schema } from '../../db/client';
 import type { AuthedUser } from '../auth/types';
 
@@ -23,7 +23,8 @@ export type SiteSummary = {
 // site_collaborators. We union the two views.
 export async function listSitesForUser(user: AuthedUser): Promise<SiteSummary[]> {
   // Sites owned by the user's active team (dev mode has only one team;
-  // Clerk mode's auth.orgId chooses).
+  // Clerk mode's auth.orgId chooses). Soft-deleted sites are filtered
+  // out — they surface on /dashboard/trash instead.
   const teamSites = await db
     .select({
       site: schema.sites,
@@ -37,7 +38,12 @@ export async function listSitesForUser(user: AuthedUser): Promise<SiteSummary[]>
         eq(schema.teamMembers.userId, user.id),
       ),
     )
-    .where(eq(schema.sites.teamId, user.teamId));
+    .where(
+      and(
+        eq(schema.sites.teamId, user.teamId),
+        isNull(schema.sites.deletedAt),
+      ),
+    );
 
   // Sites shared with the user as an individual collaborator.
   const sharedSites = await db
@@ -49,7 +55,8 @@ export async function listSitesForUser(user: AuthedUser): Promise<SiteSummary[]>
         eq(schema.siteCollaborators.siteId, schema.sites.id),
         eq(schema.siteCollaborators.userId, user.id),
       ),
-    );
+    )
+    .where(isNull(schema.sites.deletedAt));
 
   const rows: SiteSummary[] = [];
   for (const r of teamSites) {
@@ -150,9 +157,12 @@ export async function createSite(
 
 // Access check: does the caller see this site, and in what role?
 // Returns null when the user has no access — callers translate to 404/403.
+// By default, soft-deleted sites are invisible (treated like 404); pass
+// { includeDeleted: true } from the trash view to bypass the filter.
 export async function getSiteAccess(
   user: AuthedUser,
   siteId: string,
+  options: { includeDeleted?: boolean } = {},
 ): Promise<{
   site: typeof schema.sites.$inferSelect;
   role: 'owner' | 'admin' | 'editor' | 'viewer';
@@ -164,6 +174,7 @@ export async function getSiteAccess(
     .where(eq(schema.sites.id, siteId))
     .limit(1);
   if (!site) return null;
+  if (!options.includeDeleted && site.deletedAt) return null;
 
   // Team membership (active team only — matches Clerk's one-org-at-a-time
   // session model).
@@ -225,11 +236,93 @@ export function roleAtLeast(
   return (ROLE_RANK[role] ?? 0) >= (ROLE_RANK[min] ?? 0);
 }
 
+// Soft delete: stamps deleted_at so the site disappears from listings
+// but the row and all its files/versions/collaborators stay intact for
+// restore. Hard delete (hardDeleteSite) is a separate action invoked
+// from /dashboard/trash.
 export async function deleteSite(user: AuthedUser, siteId: string): Promise<void> {
   const access = await getSiteAccess(user, siteId);
   if (!access) throw new ValidationError('Site not found.');
   if (!roleAtLeast(access.role, 'admin')) {
     throw new ValidationError('Only team admins/owners can delete a site.');
+  }
+  await db
+    .update(schema.sites)
+    .set({ deletedAt: sql`now()` })
+    .where(eq(schema.sites.id, siteId));
+}
+
+// Trashed sites for the caller's active team. Collaborator-only grants
+// aren't surfaced — only the owning team manages the trash.
+export async function listTrashForUser(
+  user: AuthedUser,
+): Promise<SiteSummary[]> {
+  const rows = await db
+    .select({ site: schema.sites, role: schema.teamMembers.role })
+    .from(schema.sites)
+    .innerJoin(
+      schema.teamMembers,
+      and(
+        eq(schema.teamMembers.teamId, schema.sites.teamId),
+        eq(schema.teamMembers.userId, user.id),
+      ),
+    )
+    .where(
+      and(
+        eq(schema.sites.teamId, user.teamId),
+        isNotNull(schema.sites.deletedAt),
+      ),
+    )
+    .orderBy(desc(schema.sites.deletedAt));
+  return rows.map((r) => ({
+    id: r.site.id,
+    slug: r.site.slug,
+    name: r.site.name,
+    templateId: r.site.templateId,
+    teamId: r.site.teamId,
+    createdAt: r.site.createdAt,
+    updatedAt: r.site.updatedAt,
+    publishedAt: r.site.publishedAt,
+    role: r.role as SiteSummary['role'],
+    via: 'team' as const,
+  }));
+}
+
+export async function restoreSite(
+  user: AuthedUser,
+  siteId: string,
+): Promise<void> {
+  const access = await getSiteAccess(user, siteId, { includeDeleted: true });
+  if (!access) throw new ValidationError('Site not found.');
+  if (!roleAtLeast(access.role, 'admin')) {
+    throw new ValidationError('Only team admins/owners can restore a site.');
+  }
+  if (!access.site.deletedAt) return; // already restored
+  await db
+    .update(schema.sites)
+    .set({ deletedAt: null })
+    .where(eq(schema.sites.id, siteId));
+}
+
+// Hard delete — cascades to site_files / site_versions / site_collaborators
+// via FK ON DELETE CASCADE. Blob artifacts are NOT wiped here; a
+// background job can sweep orphan pub/<slug>/* later. The more urgent
+// problem is freeing the slug.
+export async function hardDeleteSite(
+  user: AuthedUser,
+  siteId: string,
+): Promise<void> {
+  const access = await getSiteAccess(user, siteId, { includeDeleted: true });
+  if (!access) throw new ValidationError('Site not found.');
+  if (!roleAtLeast(access.role, 'admin')) {
+    throw new ValidationError(
+      'Only team admins/owners can permanently delete a site.',
+    );
+  }
+  if (!access.site.deletedAt) {
+    throw new ValidationError(
+      'Move the site to trash first, then permanently delete.',
+    );
   }
   await db.delete(schema.sites).where(eq(schema.sites.id, siteId));
 }

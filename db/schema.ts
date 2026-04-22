@@ -62,6 +62,12 @@ export const sites = pgTable(
     createdBy: text('created_by').notNull().references(() => users.id),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    // Soft delete: non-null → site is in trash. Kept indefinitely until
+    // the user Permanently Deletes (hard delete cascades to files/
+    // versions/collaborators). Listing queries filter WHERE
+    // deleted_at IS NULL so soft-deleted sites disappear from
+    // dashboard / editor / public /s without extra plumbing.
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
   },
   (t) => [index('sites_team_idx').on(t.teamId)],
 );

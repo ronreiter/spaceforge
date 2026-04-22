@@ -104,6 +104,12 @@ export function DashboardView({
               <Title order={4}>Spaceforge</Title>
             </Group>
             <Group gap="md" wrap="nowrap">
+              <Anchor component={Link} href="/dashboard/trash" c="dimmed">
+                <Group gap={4} wrap="nowrap">
+                  <IconTrash size={14} />
+                  <Text size="sm">Trash</Text>
+                </Group>
+              </Anchor>
               <Anchor component={Link} href="/team" c="dimmed">
                 <Group gap={4} wrap="nowrap">
                   <IconUsers size={14} />

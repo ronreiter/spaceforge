@@ -47,7 +47,9 @@ export async function GET(
     .from(schema.sites)
     .where(eq(schema.sites.slug, slug))
     .limit(1);
-  if (!site) {
+  if (!site || site.deletedAt) {
+    // Soft-deleted sites 404 the same as never-existed ones — visitors
+    // shouldn't be able to tell a site was trashed.
     return new NextResponse('Site not found', { status: 404 });
   }
   if (!site.publishedVersionId) {
