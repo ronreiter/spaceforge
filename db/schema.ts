@@ -1,0 +1,138 @@
+import {
+  pgTable,
+  text,
+  uuid,
+  timestamp,
+  jsonb,
+  integer,
+  bigserial,
+  primaryKey,
+  index,
+} from 'drizzle-orm/pg-core';
+
+// Spaceforge data model. Clerk is the source of truth for users/orgs;
+// `users` and `teams` tables are local mirrors so FKs, joins, and audit
+// queries stay fast without an extra network call. Clerk webhooks keep
+// them in sync (see app/api/webhooks/clerk).
+
+export const users = pgTable('users', {
+  id: text('id').primaryKey(),        // = Clerk user id (user_XXX)
+  email: text('email').notNull(),
+  name: text('name'),
+  avatarUrl: text('avatar_url'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const teams = pgTable('teams', {
+  id: text('id').primaryKey(),         // = Clerk organization id (org_XXX)
+  slug: text('slug').notNull().unique(),
+  name: text('name').notNull(),
+  plan: text('plan').notNull().default('free'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const teamMembers = pgTable(
+  'team_members',
+  {
+    teamId: text('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    // owner | admin | editor | viewer
+    role: text('role').notNull(),
+    joinedAt: timestamp('joined_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.teamId, t.userId] }),
+    index('team_members_user_idx').on(t.userId),
+  ],
+);
+
+export const sites = pgTable(
+  'sites',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    teamId: text('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+    slug: text('slug').notNull().unique(),
+    name: text('name').notNull(),
+    templateId: text('template_id').notNull().default('custom'),
+    // publishedVersionId is a FK to site_versions, but defined as plain uuid
+    // here to avoid the circular FK (site_versions.siteId → sites.id). Set
+    // via plain UPDATE after inserting a version row.
+    publishedVersionId: uuid('published_version_id'),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    createdBy: text('created_by').notNull().references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('sites_team_idx').on(t.teamId)],
+);
+
+// Per-site grants outside the owning team — invited individuals.
+export const siteCollaborators = pgTable(
+  'site_collaborators',
+  {
+    siteId: uuid('site_id').notNull().references(() => sites.id, { onDelete: 'cascade' }),
+    userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    // editor | viewer
+    role: text('role').notNull(),
+    addedAt: timestamp('added_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.siteId, t.userId] }),
+    index('site_collab_user_idx').on(t.userId),
+  ],
+);
+
+// Manifest of the current draft. The blob IS the content; this row is the
+// file-tree entry + metadata.
+export const siteFiles = pgTable(
+  'site_files',
+  {
+    siteId: uuid('site_id').notNull().references(() => sites.id, { onDelete: 'cascade' }),
+    path: text('path').notNull(),
+    blobKey: text('blob_key').notNull(),
+    size: integer('size').notNull(),
+    contentHash: text('content_hash').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.siteId, t.path] })],
+);
+
+// Immutable snapshots taken on Publish. Old versions are kept (default 5)
+// so rollback is instant; older ones are garbage-collected by a cleanup job.
+export const siteVersions = pgTable(
+  'site_versions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    siteId: uuid('site_id').notNull().references(() => sites.id, { onDelete: 'cascade' }),
+    authorId: text('author_id').notNull().references(() => users.id),
+    // [{ path, blobKey, outputPath, size, contentHash, contentType }]
+    manifest: jsonb('manifest').notNull(),
+    publishedAt: timestamp('published_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('site_versions_site_idx').on(t.siteId)],
+);
+
+// Chat log per site. Replaces the in-memory history.
+export const chatMessages = pgTable(
+  'chat_messages',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    siteId: uuid('site_id').notNull().references(() => sites.id, { onDelete: 'cascade' }),
+    authorId: text('author_id').references(() => users.id),
+    // 'user' | 'assistant' | 'system'
+    role: text('role').notNull(),
+    content: text('content').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('chat_messages_site_idx').on(t.siteId, t.id)],
+);
+
+// Table type helpers for convenient inference.
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+export type Team = typeof teams.$inferSelect;
+export type NewTeam = typeof teams.$inferInsert;
+export type Site = typeof sites.$inferSelect;
+export type NewSite = typeof sites.$inferInsert;
+export type SiteFile = typeof siteFiles.$inferSelect;
+export type SiteVersion = typeof siteVersions.$inferSelect;
