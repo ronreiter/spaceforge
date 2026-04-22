@@ -235,14 +235,19 @@ export function Chat({
               p="sm"
               radius="md"
               withBorder={m.role === 'assistant'}
-              bg={
-                m.role === 'user'
-                  ? 'neon.3'
-                  : 'var(--mantine-color-default-hover)'
-              }
+              bg={m.role === 'user' ? 'neon.3' : undefined}
               c={m.role === 'user' ? 'dark.9' : undefined}
               maw="90%"
-              style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}
+              style={{
+                alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start',
+                ...(m.role === 'assistant' && {
+                  // Subtle gray-tinted surface so the assistant bubble reads
+                  // as a container on both themes. Mantine's light-dark()
+                  // function picks the right value per active color scheme.
+                  backgroundColor:
+                    'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-5))',
+                }),
+              }}
             >
               {m.role === 'assistant' ? (
                 <MessageContent content={m.content} />

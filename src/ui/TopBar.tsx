@@ -51,6 +51,11 @@ export type TopBarProps = {
   onPublish?: () => void;
   onUnpublish?: () => void;
   onVersionChanged?: (publishedAt: string, versionId: string) => void;
+  // Save indicator — true while a flush is in flight.
+  saving?: boolean;
+  // ms-since-epoch of the last acknowledged server save. null until the
+  // first save completes.
+  lastSavedAt?: number | null;
 };
 
 type VersionSummary = {
@@ -79,6 +84,47 @@ function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
+
+// Small inline indicator to the right of the site identity cluster.
+// "Saving…" while a flush is in flight, "Saved Nm ago" afterwards.
+// Returns null before the first save so it doesn't flash in the empty
+// state.
+function SaveIndicator({
+  saving,
+  lastSavedAt,
+}: {
+  saving?: boolean;
+  lastSavedAt?: number | null;
+}) {
+  // Force a rerender every 30s so "Saved 3m ago" keeps pace without a
+  // full-tree tick.
+  const [, force] = useState(0);
+  useEffect(() => {
+    if (!lastSavedAt) return;
+    const t = setInterval(() => force((n) => n + 1), 30_000);
+    return () => clearInterval(t);
+  }, [lastSavedAt]);
+
+  if (saving) {
+    return (
+      <Text size="xs" c="dimmed" fs="italic">
+        Saving…
+      </Text>
+    );
+  }
+  if (!lastSavedAt) return null;
+  const sec = Math.max(0, Math.round((Date.now() - lastSavedAt) / 1000));
+  let label: string;
+  if (sec < 5) label = 'Saved';
+  else if (sec < 60) label = `Saved ${sec}s ago`;
+  else if (sec < 3600) label = `Saved ${Math.round(sec / 60)}m ago`;
+  else label = `Saved ${Math.round(sec / 3600)}h ago`;
+  return (
+    <Text size="xs" c="dimmed">
+      {label}
+    </Text>
+  );
 }
 
 export function TopBar(p: TopBarProps) {
@@ -163,6 +209,7 @@ export function TopBar(p: TopBarProps) {
                 {p.role}
               </Badge>
             )}
+            <SaveIndicator saving={p.saving} lastSavedAt={p.lastSavedAt} />
           </Group>
         )}
 

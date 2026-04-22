@@ -169,11 +169,6 @@ function AppInnerBody({
   lastSavedAt: number | null;
   chrome?: SiteChrome;
 }) {
-  // Surface save state to the console for now — the TopBar gains a
-  // visible "saved Nm ago" indicator in a follow-up.
-  void saving;
-  void lastSavedAt;
-
   // Viewer-role collaborators can browse but not mutate. The API layer
   // enforces this too (PUT/DELETE return 403); this makes the UX honest.
   const readOnly = chrome?.role === 'viewer';
@@ -499,6 +494,8 @@ function AppInnerBody({
           onPublish={chrome?.onPublish}
           onUnpublish={chrome?.onUnpublish}
           onVersionChanged={chrome?.onVersionChanged}
+          saving={saving}
+          lastSavedAt={lastSavedAt}
         />
       </AppShell.Header>
 

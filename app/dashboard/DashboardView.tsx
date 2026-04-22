@@ -24,7 +24,6 @@ import {
 import {
   IconPlus,
   IconTrash,
-  IconEdit,
   IconShare,
   IconUsers,
   IconWorld,
@@ -265,8 +264,23 @@ function SiteCard({
   onShare?: () => void;
   onDelete?: () => void;
 }) {
+  // Card is clickable — opens the editor. Icon-button row intercepts
+  // clicks (stopPropagation) so Share / Delete don't also trigger nav.
   return (
-    <Card withBorder padding="md">
+    <Card
+      withBorder
+      padding="md"
+      onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      style={{ cursor: 'pointer' }}
+    >
       <Group justify="space-between" mb="xs">
         <Text fw={600}>{site.name}</Text>
         <Group gap={4}>
@@ -290,24 +304,22 @@ function SiteCard({
         /s/{site.slug}
       </Text>
       <Group justify="space-between">
-        <Text size="xs" c="dimmed">
+        <Badge size="xs" variant="light" color="gray">
           {site.role}
-        </Text>
-        <Group gap={4}>
-          <Tooltip label="Open editor">
-            <ActionIcon variant="subtle" onClick={onOpen} aria-label="Open editor">
-              <IconEdit size={14} />
-            </ActionIcon>
-          </Tooltip>
+        </Badge>
+        <Group
+          gap={4}
+          onClick={(e) => e.stopPropagation()}
+        >
           {onShare && (site.role === 'owner' || site.role === 'admin') && (
-            <Tooltip label="Share">
+            <Tooltip label="Share" openDelay={200}>
               <ActionIcon variant="subtle" onClick={onShare} aria-label="Share">
                 <IconShare size={14} />
               </ActionIcon>
             </Tooltip>
           )}
           {onDelete && (site.role === 'owner' || site.role === 'admin') && (
-            <Tooltip label="Delete">
+            <Tooltip label="Move to trash" openDelay={200}>
               <ActionIcon
                 variant="subtle"
                 color="red"
