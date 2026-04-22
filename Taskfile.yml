@@ -1,0 +1,114 @@
+version: '3'
+
+# Deployment and Vercel-plumbing tasks for Spaceforge.
+# Run `task` or `task --list-all` to see everything available.
+#
+# Prereq (one-time): `npx vercel@latest login` and `task link` to bind
+# this working directory to the Vercel project.
+
+vars:
+  VERCEL: npx --yes vercel@latest
+  PROJECT: spaceforge
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list-all
+    silent: true
+
+  # --- Vercel project plumbing -------------------------------------------
+
+  link:
+    desc: Link this repo to the spaceforge Vercel project (creates .vercel/)
+    cmds:
+      - '{{.VERCEL}} link --project {{.PROJECT}} --yes'
+
+  status:
+    desc: Show latest Vercel deployments + linked project info
+    cmds:
+      - '{{.VERCEL}} ls --scope ronreiters-projects | head -20'
+      - '{{.VERCEL}} inspect {{.PROJECT}} 2>&1 | head -30 || true'
+
+  whoami:
+    desc: Print the currently authenticated Vercel user
+    cmds:
+      - '{{.VERCEL}} whoami'
+
+  # --- Environment variables ---------------------------------------------
+
+  env:ls:
+    desc: List env var names configured on Vercel (never prints values)
+    cmds:
+      - '{{.VERCEL}} env ls'
+
+  env:pull:
+    desc: Pull development env vars into .env.local (overwrites)
+    cmds:
+      - '{{.VERCEL}} env pull .env.local --yes'
+
+  env:add:
+    desc: Add an env var interactively. Usage — task env:add -- MY_VAR
+    cmds:
+      - '{{.VERCEL}} env add {{.CLI_ARGS}}'
+
+  env:rm:
+    desc: Remove an env var. Usage — task env:rm -- MY_VAR production
+    cmds:
+      - '{{.VERCEL}} env rm {{.CLI_ARGS}}'
+
+  # --- Domains -----------------------------------------------------------
+
+  domains:
+    desc: List domains attached to this project
+    cmds:
+      - '{{.VERCEL}} domains ls'
+
+  domains:inspect:
+    desc: Inspect a domain (DNS, cert, nameserver status). Usage — task domains:inspect -- spaceforge.dev
+    cmds:
+      - '{{.VERCEL}} domains inspect {{.CLI_ARGS}}'
+
+  # --- Deploy ------------------------------------------------------------
+
+  deploy:preview:
+    desc: Create a preview deployment (branch/PR style URL)
+    cmds:
+      - '{{.VERCEL}} deploy'
+
+  deploy:
+    desc: Deploy to production (spaceforge.dev once DNS is wired)
+    cmds:
+      - '{{.VERCEL}} deploy --prod'
+
+  logs:
+    desc: Stream runtime logs from the latest production deployment
+    cmds:
+      - '{{.VERCEL}} logs $({{.VERCEL}} ls {{.PROJECT}} --scope ronreiters-projects | awk "/Production/ {print \$2; exit}")'
+
+  # --- Local development -------------------------------------------------
+
+  dev:
+    desc: Run the Vite dev server (reads UNSPLASH_ACCESS_KEY from .env.local)
+    cmds:
+      - npm run dev
+
+  dev:vercel:
+    desc: Run `vercel dev` — serves api/ functions using Vercel's runtime
+    cmds:
+      - '{{.VERCEL}} dev'
+
+  build:
+    desc: Production build (tsc + vite build)
+    cmds:
+      - npm run build
+
+  typecheck:
+    desc: TypeScript typecheck
+    cmds:
+      - npm run typecheck
+
+  test:
+    desc: Run vitest once
+    cmds:
+      - npm run test

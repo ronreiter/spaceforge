@@ -1,4 +1,4 @@
-const ALLOWED_EXT = new Set(['.html', '.css', '.js', '.svg', '.json', '.txt', '.md']);
+const ALLOWED_EXT = new Set(['.html', '.css', '.js', '.svg', '.json', '.txt', '.md', '.njk']);
 
 export function sanitizePath(raw: string): string | null {
   const trimmed = raw.trim();

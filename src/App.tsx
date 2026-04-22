@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { AppShell, Tabs, Box } from '@mantine/core';
-import { IconEye, IconCode } from '@tabler/icons-react';
+import { IconEye, IconCode, IconLayoutGrid } from '@tabler/icons-react';
 import { BrowserGate } from './ui/BrowserGate';
 import { TopBar } from './ui/TopBar';
 import { Chat, type ChatSendState } from './ui/Chat';
 import { Preview } from './ui/Preview';
 import { Source } from './ui/Source';
+import { Templates } from './ui/Templates';
 import {
   loadSite,
   saveSite,
@@ -13,12 +14,34 @@ import {
   deleteFile,
   clearSite,
   emptySite,
+  setTemplate,
   type SiteState,
   type ChatMessage,
 } from './storage/files';
 import { buildZip, triggerDownload } from './storage/zip';
+import { overlayFiles } from './templates/registry';
 import { loadModel, type Generator, type ProgressInfo } from './model/loader';
 import { runGeneration } from './model/generate';
+import { stripCodeFences } from './parser/stripCodeFences';
+
+// Heuristic: after the model hits EOS mid-stream the parser emits
+// file-truncated, but the body often ends with a perfectly good closing
+// (</html>, trailing } on a css block). When it does we save silently
+// without the "cut off" warning — the user's preview just works.
+function looksComplete(path: string, body: string): boolean {
+  const trimmed = body.replace(/\s+$/, '');
+  if (!trimmed) return false;
+  const ext = path.toLowerCase().split('.').pop() ?? '';
+  if (ext === 'html' || ext === 'htm') return /<\/html>\s*$/i.test(trimmed);
+  if (ext === 'css') return trimmed.endsWith('}');
+  if (ext === 'js' || ext === 'mjs' || ext === 'ts' || ext === 'tsx') {
+    return /[};)]\s*$/.test(trimmed);
+  }
+  if (ext === 'json') return /[}\]]\s*$/.test(trimmed);
+  if (ext === 'svg') return /<\/svg>\s*$/i.test(trimmed);
+  // Unknown extension: trust it if it's non-trivial.
+  return trimmed.length > 40;
+}
 import {
   DEFAULT_MODEL_ID,
   MODEL_STORAGE_KEY,
@@ -42,10 +65,18 @@ function AppInner() {
     saveSite(site);
   }, [site]);
 
-  const [tab, setTab] = useState<'preview' | 'source'>('preview');
+  const [tab, setTab] = useState<'preview' | 'source' | 'templates'>('preview');
+
+  const previewFiles = useMemo(
+    () => overlayFiles(site.files, site.templateId),
+    [site.files, site.templateId],
+  );
 
   const [modelId, setModelId] = useState<string>(
-    () => localStorage.getItem(MODEL_STORAGE_KEY) ?? site.model ?? DEFAULT_MODEL_ID,
+    () =>
+      localStorage.getItem(MODEL_STORAGE_KEY) ||
+      site.model ||
+      DEFAULT_MODEL_ID,
   );
   const [generator, setGenerator] = useState<Generator | null>(null);
   const [status, setStatus] = useState<string>('Checking model…');
@@ -171,7 +202,7 @@ function AppInner() {
           fileBuffers.current[path] = (fileBuffers.current[path] ?? '') + chunk;
         },
         onFileEnd: (path) => {
-          const buf = fileBuffers.current[path] ?? '';
+          const buf = stripCodeFences(fileBuffers.current[path] ?? '');
           delete fileBuffers.current[path];
           setSite((s) => {
             try {
@@ -182,17 +213,27 @@ function AppInner() {
           });
         },
         onFileTruncated: (path) => {
+          const buf = stripCodeFences(fileBuffers.current[path] ?? '');
           delete fileBuffers.current[path];
+          const complete = looksComplete(path, buf);
           setSite((s) => {
             const h = [...s.chatHistory];
             const last = h[h.length - 1];
-            if (last && last.role === 'assistant') {
-              h[h.length - 1] = {
-                ...last,
-                content: last.content + `\n\n[file "${path}" was cut off]`,
-              };
+            if (last && last.role === 'assistant' && !complete) {
+              const note = buf
+                ? `\n\n[file "${path}" was cut off — saved partial contents; ask me to finish it]`
+                : `\n\n[file "${path}" was cut off before any content — ask me to try again]`;
+              h[h.length - 1] = { ...last, content: last.content + note };
             }
-            return { ...s, chatHistory: h };
+            let next = { ...s, chatHistory: h };
+            if (buf) {
+              try {
+                next = writeFile(next, path, buf);
+              } catch {
+                /* ignore invalid path */
+              }
+            }
+            return next;
           });
         },
         onComplete: () => {
@@ -255,10 +296,12 @@ function AppInner() {
     });
 
   async function onDownloadZip() {
-    const blob = await buildZip(site.files);
+    const blob = await buildZip(site.files, site.templateId);
     const ts = new Date().toISOString().replace(/[-:]/g, '').slice(0, 13);
     triggerDownload(blob, `spaceforge-site-${ts}.zip`);
   }
+
+  const onSelectTemplate = (id: string) => setSite((s) => setTemplate(s, id));
 
   function onStartFresh() {
     if (
@@ -341,7 +384,7 @@ function AppInner() {
           >
             <Tabs
               value={tab}
-              onChange={(v) => v && setTab(v as 'preview' | 'source')}
+              onChange={(v) => v && setTab(v as 'preview' | 'source' | 'templates')}
               variant="default"
               style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
             >
@@ -352,9 +395,12 @@ function AppInner() {
                 <Tabs.Tab value="source" leftSection={<IconCode size={14} />}>
                   Source
                 </Tabs.Tab>
+                <Tabs.Tab value="templates" leftSection={<IconLayoutGrid size={14} />}>
+                  Template
+                </Tabs.Tab>
               </Tabs.List>
               <Tabs.Panel value="preview" style={{ flex: 1, minHeight: 0 }}>
-                <Preview files={site.files} />
+                <Preview files={previewFiles} />
               </Tabs.Panel>
               <Tabs.Panel value="source" style={{ flex: 1, minHeight: 0 }}>
                 <Source
@@ -363,6 +409,9 @@ function AppInner() {
                   onFileDelete={onFileDelete}
                   onFileCreate={onFileCreate}
                 />
+              </Tabs.Panel>
+              <Tabs.Panel value="templates" style={{ flex: 1, minHeight: 0 }}>
+                <Templates templateId={site.templateId} onSelect={onSelectTemplate} />
               </Tabs.Panel>
             </Tabs>
           </Box>

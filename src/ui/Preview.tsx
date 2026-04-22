@@ -15,19 +15,29 @@ import {
   IconRefresh,
   IconWorld,
 } from '@tabler/icons-react';
-import { renderPage } from '../runtime/iframeRuntime';
+import { renderPage, resolvePage, resolveRoute, outputPath } from '../runtime/iframeRuntime';
 
 export type PreviewProps = {
   files: Record<string, string>;
 };
 
+function entryPath(files: Record<string, string>): string | null {
+  // After the 11ty pivot, content is Markdown. We keep .njk/.html as
+  // legacy fallbacks so sites generated before the pivot still preview.
+  if ('index.md' in files) return 'index.md';
+  if ('index.njk' in files) return 'index.njk';
+  if ('index.html' in files) return 'index.html';
+  return null;
+}
+
 export function Preview({ files }: PreviewProps) {
-  const [history, setHistory] = useState<string[]>(['index.html']);
+  const initial = entryPath(files) ?? 'index.html';
+  const [history, setHistory] = useState<string[]>([initial]);
   const [cursor, setCursor] = useState(0);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const currentPath = history[cursor];
-  const hasIndex = 'index.html' in files;
+  const hasIndex = entryPath(files) !== null;
 
   const navigate = useCallback(
     (path: string) => {
@@ -39,24 +49,33 @@ export function Preview({ files }: PreviewProps) {
 
   useEffect(() => {
     if (currentPath && !(currentPath in files) && hasIndex) {
-      setHistory(['index.html']);
-      setCursor(0);
+      const entry = entryPath(files);
+      if (entry) {
+        setHistory([entry]);
+        setCursor(0);
+      }
     }
   }, [files, currentPath, hasIndex]);
 
   useEffect(() => {
     if (!iframeRef.current) return;
-    const html = files[currentPath];
-    if (html === undefined) return;
+    if (!(currentPath in files)) return;
+    let html: string;
+    try {
+      html = resolvePage(currentPath, files);
+    } catch (err) {
+      html = `<pre style="padding:1rem;color:#b00;font-family:monospace;white-space:pre-wrap">Template error in ${currentPath}:\n\n${
+        err instanceof Error ? err.message : String(err)
+      }</pre>`;
+    }
     iframeRef.current.srcdoc = renderPage(html, files);
   }, [currentPath, files]);
 
   useEffect(() => {
     function onMessage(e: MessageEvent) {
       if (!e.data || e.data.type !== 'spaceforge:nav') return;
-      const href = String(e.data.href).replace(/^\.?\/?/, '').split('#')[0];
-      if (!href || !(href in files)) return;
-      navigate(href);
+      const resolved = resolveRoute(String(e.data.href), files);
+      if (resolved) navigate(resolved);
     }
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
@@ -65,8 +84,12 @@ export function Preview({ files }: PreviewProps) {
   const back = () => setCursor((c) => Math.max(0, c - 1));
   const forward = () => setCursor((c) => Math.min(history.length - 1, c + 1));
   const reload = () => {
-    if (iframeRef.current && files[currentPath] !== undefined) {
-      iframeRef.current.srcdoc = renderPage(files[currentPath], files);
+    if (!iframeRef.current) return;
+    if (!(currentPath in files)) return;
+    try {
+      iframeRef.current.srcdoc = renderPage(resolvePage(currentPath, files), files);
+    } catch {
+      /* ignore reload-time template errors; the effect will re-run on edit */
     }
   };
 
@@ -86,7 +109,7 @@ export function Preview({ files }: PreviewProps) {
           <IconWorld size={32} stroke={1.5} color="var(--mantine-color-dimmed)" />
           <Text c="dimmed" size="sm">
             Ask the assistant to build a site. The preview will appear here once there's an{' '}
-            <Code>index.html</Code>.
+            <Code>index.md</Code>.
           </Text>
         </Stack>
       </Center>
@@ -121,7 +144,7 @@ export function Preview({ files }: PreviewProps) {
         <form onSubmit={submitAddress} style={{ flex: 1 }}>
           <TextInput
             size="xs"
-            value={`spaceforge://site/${addressInput}`}
+            value={`spaceforge://site/${outputPath(addressInput)}`}
             onChange={(e) =>
               setAddressInput(
                 e.currentTarget.value.replace(/^spaceforge:\/\/site\//, ''),
