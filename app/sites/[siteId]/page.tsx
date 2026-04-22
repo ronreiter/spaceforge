@@ -29,6 +29,9 @@ export default async function SitePage({
       siteName={access.site.name}
       siteSlug={access.site.slug}
       role={access.role}
+      initialPublishedAt={
+        access.site.publishedAt ? access.site.publishedAt.toISOString() : null
+      }
     />
   );
 }

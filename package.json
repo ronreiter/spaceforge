@@ -33,6 +33,7 @@
     "drizzle-orm": "^0.45.2",
     "front-matter": "^4.0.2",
     "jszip": "^3.10.1",
+    "linkedom": "^0.18.12",
     "markdown-it": "^14.1.1",
     "monaco-editor": "^0.55.1",
     "next": "^16.2.4",
