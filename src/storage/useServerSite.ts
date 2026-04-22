@@ -4,6 +4,7 @@ import {
   deleteFileFromServer,
   loadSiteFromServer,
   saveChatLocal,
+  updateSiteMeta,
   writeFileToServer,
   type ServerSiteMeta,
 } from './serverFiles';
@@ -123,6 +124,15 @@ export function useServerSite(siteId: string): UseServerSite {
           pendingRef.current = next.files;
           if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
           saveTimerRef.current = setTimeout(flush, DEBOUNCE_MS);
+        }
+        // Template changes are small + infrequent — PATCH them
+        // immediately rather than debouncing, so a refresh right after
+        // clicking a template card lands on the new selection.
+        if (next.templateId !== prev.templateId) {
+          setMeta((m) => (m ? { ...m, templateId: next.templateId } : m));
+          updateSiteMeta(siteId, { templateId: next.templateId }).catch((e) => {
+            setError(e instanceof Error ? e.message : String(e));
+          });
         }
         return next;
       });

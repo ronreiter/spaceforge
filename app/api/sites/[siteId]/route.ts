@@ -5,6 +5,7 @@ import {
   getSiteAccess,
   hardDeleteSite,
   roleAtLeast,
+  updateSite,
 } from '../../../../lib/sites/service';
 import { errorResponse, json } from '../../../../lib/api/respond';
 
@@ -32,6 +33,29 @@ export async function GET(
       role: access.role,
       via: access.via,
     });
+  } catch (err) {
+    return errorResponse(err);
+  }
+}
+
+// PATCH /api/sites/:id — update templateId / name. Editor+ only.
+export async function PATCH(
+  req: NextRequest,
+  ctx: { params: Promise<{ siteId: string }> },
+) {
+  try {
+    const user = await requireUser();
+    const { siteId } = await ctx.params;
+    const body = (await req.json()) as {
+      templateId?: unknown;
+      name?: unknown;
+    };
+    await updateSite(user, siteId, {
+      templateId:
+        typeof body.templateId === 'string' ? body.templateId : undefined,
+      name: typeof body.name === 'string' ? body.name : undefined,
+    });
+    return json({ ok: true });
   } catch (err) {
     return errorResponse(err);
   }

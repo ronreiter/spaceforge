@@ -327,6 +327,31 @@ export async function hardDeleteSite(
   await db.delete(schema.sites).where(eq(schema.sites.id, siteId));
 }
 
+// Partial update — template change, rename, etc. Editor access only
+// (viewers shouldn't rename/swap templates). Only the fields provided
+// are written.
+export async function updateSite(
+  user: AuthedUser,
+  siteId: string,
+  patch: { templateId?: string; name?: string },
+): Promise<void> {
+  const access = await getSiteAccess(user, siteId);
+  if (!access) throw new ValidationError('Site not found.');
+  if (!roleAtLeast(access.role, 'editor')) {
+    throw new ValidationError('Read-only access — cannot modify site.');
+  }
+  const fields: Partial<typeof schema.sites.$inferInsert> = {
+    updatedAt: new Date(),
+  };
+  if (typeof patch.templateId === 'string') fields.templateId = patch.templateId;
+  if (typeof patch.name === 'string') {
+    const name = patch.name.trim();
+    if (!name) throw new ValidationError('Name cannot be empty.');
+    fields.name = name;
+  }
+  await db.update(schema.sites).set(fields).where(eq(schema.sites.id, siteId));
+}
+
 // Touch updatedAt on the site row — called whenever drafts change so
 // dashboard sort order reflects recent activity.
 export async function touchSite(siteId: string): Promise<void> {

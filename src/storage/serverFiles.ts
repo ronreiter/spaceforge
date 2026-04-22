@@ -162,14 +162,16 @@ export async function updateSiteMeta(
   siteId: string,
   patch: { templateId?: string; name?: string },
 ): Promise<void> {
-  // No PATCH route exists yet — template stays client-local until we add
-  // one. Kept as a stub so the App's setTemplate path already goes through
-  // the server-storage module; we just log for now.
-  //
-  // TODO(phase-1f): add PATCH /api/sites/:id that accepts name +
-  // templateId and persists.
-  void siteId;
-  void patch;
+  const res = await fetch(`/api/sites/${siteId}`, {
+    method: 'PATCH',
+    credentials: 'same-origin',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(patch),
+  });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(body?.error ?? `HTTP ${res.status}`);
+  }
 }
 
 function encodeFilePath(path: string): string {

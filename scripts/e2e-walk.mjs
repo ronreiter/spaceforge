@@ -9,6 +9,14 @@
 import { chromium } from 'playwright';
 
 const BASE = 'http://localhost:3000';
+// Headless chromium-headless-shell doesn't ship WebGPU; BrowserGate
+// refuses to render the editor. Setting the bypass flag at context
+// level affects every page we open.
+async function enableGateBypass(ctx) {
+  await ctx.addInitScript(() => {
+    window.__SPACEFORGE_SKIP_GATE = true;
+  });
+}
 const SLUG = `e2e-${Date.now().toString(36)}`;
 const SITE_NAME = 'E2E Walk';
 
@@ -23,6 +31,7 @@ const log = (ok, label, detail = '') => {
 async function main() {
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  await enableGateBypass(ctx);
   const page = await ctx.newPage();
 
   const consoleErrors = [];
@@ -64,23 +73,31 @@ async function main() {
     log(/\/sites\/[0-9a-f-]{36}$/.test(page.url()), 'After create → navigates to /sites/:id', page.url());
 
     console.log('\n=== 3. Editor shell renders on /sites/:id ===');
-    // The thin top toolbar we added in SiteEditor.
-    const dashLink = await page.getByRole('link', { name: /dashboard/i }).first().isVisible();
-    log(dashLink, 'Dashboard back link present');
+    // Wait for the editor chrome to hydrate. The server-site hook shows a
+    // spinner for a moment while /api/sites/:id + /files resolve; we have
+    // to wait for the TopBar before targeting its elements.
+    await page.getByRole('link', { name: /dashboard/i }).first().waitFor({
+      state: 'visible',
+      timeout: 15_000,
+    });
+    log(true, 'Dashboard back link present');
 
-    const siteNameVisible = await page.getByText(SITE_NAME, { exact: true }).first().isVisible();
-    log(siteNameVisible, 'Site name rendered in toolbar');
+    await page.getByText(SITE_NAME, { exact: true }).first().waitFor({
+      state: 'visible',
+      timeout: 15_000,
+    });
+    log(true, 'Site name rendered in TopBar');
 
-    const slugVisible = await page.getByText(`/s/${SLUG}`).first().isVisible();
-    log(slugVisible, 'Slug visible in toolbar');
+    await page.getByText(`/s/${SLUG}`).first().waitFor({
+      state: 'visible',
+      timeout: 15_000,
+    });
+    log(true, 'Slug visible in TopBar');
 
     const publishBtn = page.getByRole('button', { name: /^publish$/i });
-    log(await publishBtn.first().isVisible(), '"Publish" button visible');
-
-    // Editor itself hydrates — we check for the Spaceforge title text in the
-    // TopBar nested inside App. This also catches any WebGPU gate failure
-    // since the gate runs before the rest of the UI mounts.
-    await page.waitForLoadState('networkidle');
+    await publishBtn.first().waitFor({ state: 'visible', timeout: 15_000 });
+    log(true, '"Publish" button visible');
+    // Skip networkidle — Next.js dev keeps a websocket open indefinitely.
 
     console.log('\n=== 4. Server-backed file writes ===');
     // Seed files via API (faster and deterministic than driving Monaco).
@@ -130,14 +147,17 @@ async function main() {
 
     console.log('\n=== 7. Unpublish + delete cleanup ===');
     await page.bringToFront();
-    // Register BEFORE the click — confirm() fires synchronously during the
-    // handler, so a later page.once would miss it.
-    page.on('dialog', (d) => {
-      if (d.type() === 'confirm') d.accept().catch(() => {});
-      else d.dismiss().catch(() => {});
-    });
+    // Confirmation is now a Mantine modal (useConfirm hook). Click the
+    // TopBar's Unpublish, then click the modal's confirm button.
     const unpublishBtn = page.getByRole('button', { name: /unpublish/i });
     await unpublishBtn.first().click();
+    // Modal body uses the button label "Unpublish" too — but the
+    // modal's dialog role scopes the selector so .first() lands on the
+    // modal button (it's rendered AFTER the TopBar button).
+    const modal = page.getByRole('dialog', { name: /take this site offline/i });
+    await modal
+      .getByRole('button', { name: /^unpublish$/i })
+      .click({ timeout: 5_000 });
     // The UI swaps to "draft" badge + removes the View link when unpublish lands.
     await page.waitForFunction(
       () => !Array.from(document.querySelectorAll('a')).some(
