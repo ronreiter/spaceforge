@@ -32,6 +32,7 @@ export default async function SitePage({
       initialPublishedAt={
         access.site.publishedAt ? access.site.publishedAt.toISOString() : null
       }
+      initialPublishedVersionId={access.site.publishedVersionId ?? null}
     />
   );
 }

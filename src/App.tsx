@@ -58,14 +58,19 @@ export type SiteChrome = {
   // Multi-tenant site context surfaced in the TopBar. None of these are
   // required for the editor to work; they just let the TopBar show the
   // back-to-dashboard link, site name, publish controls, etc.
+  siteId?: string;
   siteName?: string;
   siteSlug?: string;
   role?: 'owner' | 'admin' | 'editor' | 'viewer';
   publishedAt?: string | null;
+  publishedVersionId?: string | null;
   dashboardHref?: string;
   publishing?: boolean;
   onPublish?: () => void;
   onUnpublish?: () => void;
+  // Called after a rollback so the host can refresh publishedAt +
+  // publishedVersionId without a page reload.
+  onVersionChanged?: (publishedAt: string, versionId: string) => void;
 };
 
 export type AppProps = {
@@ -474,13 +479,16 @@ function AppInnerBody({
           onDownloadZip={onDownloadZip}
           onStartFresh={onStartFresh}
           dashboardHref={chrome?.dashboardHref}
+          siteId={chrome?.siteId}
           siteName={chrome?.siteName}
           siteSlug={chrome?.siteSlug}
           role={chrome?.role}
           publishedAt={chrome?.publishedAt}
+          publishedVersionId={chrome?.publishedVersionId}
           publishing={chrome?.publishing}
           onPublish={chrome?.onPublish}
           onUnpublish={chrome?.onUnpublish}
+          onVersionChanged={chrome?.onVersionChanged}
         />
       </AppShell.Header>
 

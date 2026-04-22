@@ -12,6 +12,7 @@ const App = dynamic(() => import('../../../src/App'), {
 
 type PublishState = {
   publishedAt: string | null;
+  publishedVersionId: string | null;
   publishing: boolean;
   error: string | null;
 };
@@ -26,15 +27,18 @@ export function SiteEditor({
   siteSlug,
   role,
   initialPublishedAt,
+  initialPublishedVersionId,
 }: {
   siteId: string;
   siteName: string;
   siteSlug: string;
   role: 'owner' | 'admin' | 'editor' | 'viewer';
   initialPublishedAt: string | null;
+  initialPublishedVersionId: string | null;
 }) {
   const [state, setState] = useState<PublishState>({
     publishedAt: initialPublishedAt,
+    publishedVersionId: initialPublishedVersionId,
     publishing: false,
     error: null,
   });
@@ -51,8 +55,15 @@ export function SiteEditor({
       }));
       return;
     }
-    const body = (await res.json()) as { result: { publishedAt: string } };
-    setState({ publishedAt: body.result.publishedAt, publishing: false, error: null });
+    const body = (await res.json()) as {
+      result: { publishedAt: string; versionId: string };
+    };
+    setState({
+      publishedAt: body.result.publishedAt,
+      publishedVersionId: body.result.versionId,
+      publishing: false,
+      error: null,
+    });
   }, [siteId]);
 
   const unpublish = useCallback(async () => {
@@ -68,21 +79,33 @@ export function SiteEditor({
       }));
       return;
     }
-    setState({ publishedAt: null, publishing: false, error: null });
+    setState({
+      publishedAt: null,
+      publishedVersionId: null,
+      publishing: false,
+      error: null,
+    });
   }, [siteId]);
+
+  const onVersionChanged = useCallback((publishedAt: string, versionId: string) => {
+    setState((s) => ({ ...s, publishedAt, publishedVersionId: versionId }));
+  }, []);
 
   return (
     <App
       siteId={siteId}
       chrome={{
         dashboardHref: '/dashboard',
+        siteId,
         siteName,
         siteSlug,
         role,
         publishedAt: state.publishedAt,
+        publishedVersionId: state.publishedVersionId,
         publishing: state.publishing,
         onPublish: publish,
         onUnpublish: unpublish,
+        onVersionChanged,
       }}
     />
   );

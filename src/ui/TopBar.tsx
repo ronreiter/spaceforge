@@ -1,11 +1,14 @@
+import { useEffect, useState } from 'react';
 import {
   Anchor,
   Badge,
   Box,
   Button,
   Group,
+  Menu,
   Progress,
   ActionIcon,
+  Stack,
   Text,
   Tooltip,
 } from '@mantine/core';
@@ -15,6 +18,8 @@ import {
 } from '@mantine/core';
 import {
   IconArrowLeft,
+  IconCheck,
+  IconClock,
   IconDownload,
   IconEye,
   IconRocket,
@@ -36,14 +41,45 @@ export type TopBarProps = {
   onDownloadZip: () => void;
   // Multi-tenant site context (optional — only set at /sites/:id):
   dashboardHref?: string;
+  siteId?: string;
   siteName?: string;
   siteSlug?: string;
   role?: 'owner' | 'admin' | 'editor' | 'viewer';
   publishedAt?: string | null;
+  publishedVersionId?: string | null;
   publishing?: boolean;
   onPublish?: () => void;
   onUnpublish?: () => void;
+  onVersionChanged?: (publishedAt: string, versionId: string) => void;
 };
+
+type VersionSummary = {
+  id: string;
+  publishedAt: string;
+  authorId: string;
+  artifactCount: number;
+  totalBytes: number;
+  isCurrent: boolean;
+};
+
+function formatTimeAgo(iso: string): string {
+  const then = new Date(iso).getTime();
+  const now = Date.now();
+  const s = Math.max(0, Math.round((now - then) / 1000));
+  if (s < 60) return `${s}s ago`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  if (h < 48) return `${h}h ago`;
+  const d = Math.round(h / 24);
+  return `${d}d ago`;
+}
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+}
 
 export function TopBar(p: TopBarProps) {
   const { setColorScheme } = useMantineColorScheme();
@@ -200,6 +236,14 @@ export function TopBar(p: TopBarProps) {
             </Anchor>
           </Tooltip>
         )}
+        {hasSite && p.siteId && p.publishedAt && (
+          <VersionHistoryMenu
+            siteId={p.siteId}
+            publishedVersionId={p.publishedVersionId ?? null}
+            canActivate={canWrite}
+            onVersionChanged={p.onVersionChanged}
+          />
+        )}
         {hasSite && canWrite && p.publishedAt && (
           <Button
             variant="light"
@@ -235,5 +279,151 @@ export function TopBar(p: TopBarProps) {
         )}
       </Group>
     </Box>
+  );
+}
+
+// Version history popover: latest N publishes with a one-click
+// "activate" button that pivots sites.published_version_id. Artifacts
+// are immutable in Blob so this is just a DB pointer swap — no
+// re-render, no new uploads.
+function VersionHistoryMenu({
+  siteId,
+  publishedVersionId,
+  canActivate,
+  onVersionChanged,
+}: {
+  siteId: string;
+  publishedVersionId: string | null;
+  canActivate: boolean;
+  onVersionChanged?: (publishedAt: string, versionId: string) => void;
+}) {
+  const [opened, setOpened] = useState(false);
+  const [versions, setVersions] = useState<VersionSummary[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [activating, setActivating] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!opened) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    fetch(`/api/sites/${siteId}/versions`, { credentials: 'same-origin' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const body = (await res.json()) as { versions: VersionSummary[] };
+        if (!cancelled) setVersions(body.versions);
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [opened, siteId, publishedVersionId]);
+
+  async function activate(versionId: string) {
+    setActivating(versionId);
+    try {
+      const res = await fetch(
+        `/api/sites/${siteId}/versions/${versionId}/activate`,
+        { method: 'POST', credentials: 'same-origin' },
+      );
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        setError(body?.error ?? `HTTP ${res.status}`);
+        return;
+      }
+      const body = (await res.json()) as {
+        result: { publishedAt: string };
+      };
+      onVersionChanged?.(body.result.publishedAt, versionId);
+      setVersions((vs) =>
+        vs.map((v) => ({ ...v, isCurrent: v.id === versionId })),
+      );
+    } finally {
+      setActivating(null);
+    }
+  }
+
+  return (
+    <Menu
+      opened={opened}
+      onChange={setOpened}
+      position="bottom-end"
+      shadow="md"
+      width={320}
+      closeOnItemClick={false}
+    >
+      <Menu.Target>
+        <Tooltip label="Version history">
+          <ActionIcon variant="default" size="lg" aria-label="Version history">
+            <IconClock size={16} />
+          </ActionIcon>
+        </Tooltip>
+      </Menu.Target>
+      <Menu.Dropdown>
+        <Menu.Label>Recent publishes</Menu.Label>
+        {loading && (
+          <Menu.Item disabled>
+            <Text size="xs" c="dimmed">
+              Loading…
+            </Text>
+          </Menu.Item>
+        )}
+        {error && (
+          <Menu.Item disabled>
+            <Text size="xs" c="red">
+              {error}
+            </Text>
+          </Menu.Item>
+        )}
+        {!loading && !error && versions.length === 0 && (
+          <Menu.Item disabled>
+            <Text size="xs" c="dimmed">
+              No published versions yet.
+            </Text>
+          </Menu.Item>
+        )}
+        {versions.slice(0, 10).map((v) => (
+          <Menu.Item key={v.id} closeMenuOnClick={false} component="div">
+            <Group justify="space-between" wrap="nowrap" gap="xs">
+              <Stack gap={0} style={{ minWidth: 0 }}>
+                <Group gap={6} wrap="nowrap">
+                  <Text size="xs" fw={500}>
+                    {formatTimeAgo(v.publishedAt)}
+                  </Text>
+                  {v.isCurrent && (
+                    <Badge
+                      size="xs"
+                      color="green"
+                      leftSection={<IconCheck size={8} />}
+                    >
+                      live
+                    </Badge>
+                  )}
+                </Group>
+                <Text size="xs" c="dimmed">
+                  {v.artifactCount} files · {formatBytes(v.totalBytes)}
+                </Text>
+              </Stack>
+              {canActivate && !v.isCurrent && (
+                <Button
+                  size="xs"
+                  variant="light"
+                  loading={activating === v.id}
+                  onClick={() => activate(v.id)}
+                >
+                  Activate
+                </Button>
+              )}
+            </Group>
+          </Menu.Item>
+        ))}
+      </Menu.Dropdown>
+    </Menu>
   );
 }
