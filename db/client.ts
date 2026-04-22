@@ -1,4 +1,4 @@
-import { drizzle } from 'drizzle-orm/node-postgres';
+import { drizzle, type NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema';
 
@@ -6,8 +6,16 @@ import * as schema from './schema';
 // function instance gets its own Node process; we keep one pool per
 // process so repeated requests reuse connections. Drizzle's node-postgres
 // driver lives on top of pg.
+//
+// Lazy init: Next.js's `collect page data` build step imports every
+// route module. If we connected eagerly we'd blow up the build for
+// anyone without DATABASE_URL at build time (CI, preview builds
+// before env is wired, etc). Wrapping the `db` export in a Proxy
+// delays pool creation until the first query — runtime only, when
+// the env var is actually present.
 
 let pool: Pool | null = null;
+let dbInstance: NodePgDatabase<typeof schema> | null = null;
 
 function getPool(): Pool {
   if (pool) return pool;
@@ -27,9 +35,19 @@ function getPool(): Pool {
   return pool;
 }
 
-export const db = drizzle({
-  client: getPool(),
-  schema,
+function getDb(): NodePgDatabase<typeof schema> {
+  if (dbInstance) return dbInstance;
+  dbInstance = drizzle({ client: getPool(), schema });
+  return dbInstance;
+}
+
+// Forward property access to the real Drizzle instance. First touch
+// triggers pool creation and connects. Build-time imports that never
+// actually query never connect.
+export const db = new Proxy({} as NodePgDatabase<typeof schema>, {
+  get(_target, prop, receiver) {
+    return Reflect.get(getDb(), prop, receiver);
+  },
 });
 
 export type Database = typeof db;
