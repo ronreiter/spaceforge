@@ -168,6 +168,10 @@ function AppInnerBody({
   void saving;
   void lastSavedAt;
 
+  // Viewer-role collaborators can browse but not mutate. The API layer
+  // enforces this too (PUT/DELETE return 403); this makes the UX honest.
+  const readOnly = chrome?.role === 'viewer';
+
   const [tab, setTab] = useState<'preview' | 'edit' | 'templates'>('preview');
 
   const previewFiles = useMemo(
@@ -500,6 +504,7 @@ function AppInnerBody({
               queuedPrompt={queuedPrompt}
               onSend={onSend}
               onClearQueue={() => setQueuedPrompt(null)}
+              readOnly={readOnly}
             />
           </Box>
           <Box
@@ -538,10 +543,15 @@ function AppInnerBody({
                   onFileChange={onFileChange}
                   onFileCreate={onFileCreate}
                   onFileDelete={onFileDelete}
+                  readOnly={readOnly}
                 />
               </Tabs.Panel>
               <Tabs.Panel value="templates" style={{ flex: 1, minHeight: 0 }}>
-                <Templates templateId={site.templateId} onSelect={onSelectTemplate} />
+                <Templates
+                  templateId={site.templateId}
+                  onSelect={onSelectTemplate}
+                  readOnly={readOnly}
+                />
               </Tabs.Panel>
             </Tabs>
           </Box>

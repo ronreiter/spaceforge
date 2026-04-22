@@ -32,6 +32,8 @@ export type FileTreeProps = {
   onSelect: (path: string) => void;
   onFileCreate: (path: string, contents: string) => void;
   onFileDelete: (path: string) => void;
+  // When true: hides New-file button, hides Delete-file button on rows.
+  readOnly?: boolean;
 };
 
 // Pick an icon for a given filename. Paths in Spaceforge are flat so we only
@@ -78,6 +80,7 @@ export function FileTree({
   onSelect,
   onFileCreate,
   onFileDelete,
+  readOnly,
 }: FileTreeProps) {
   const [rootOpen, setRootOpen] = useState(true);
   const paths = sortPaths(Object.keys(files));
@@ -113,20 +116,22 @@ export function FileTree({
       gap={0}
       style={{ borderRight: '1px solid var(--mantine-color-default-border)' }}
     >
-      <Box
-        p="xs"
-        style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}
-      >
-        <Button
-          size="xs"
-          variant="light"
-          leftSection={<IconFilePlus size={14} />}
-          onClick={onNewFile}
-          fullWidth
+      {!readOnly && (
+        <Box
+          p="xs"
+          style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}
         >
-          New file
-        </Button>
-      </Box>
+          <Button
+            size="xs"
+            variant="light"
+            leftSection={<IconFilePlus size={14} />}
+            onClick={onNewFile}
+            fullWidth
+          >
+            New file
+          </Button>
+        </Box>
+      )}
       <ScrollArea style={{ flex: 1 }} type="auto">
         <Stack gap={2} p={4}>
           <UnstyledButton
@@ -209,15 +214,17 @@ export function FileTree({
                   >
                     <IconDownload size={12} />
                   </ActionIcon>
-                  <ActionIcon
-                    size="xs"
-                    variant="subtle"
-                    c={isActive ? '#0a0a0a' : 'red.6'}
-                    onClick={() => onDelete(p)}
-                    aria-label="Delete"
-                  >
-                    <IconTrash size={12} />
-                  </ActionIcon>
+                  {!readOnly && (
+                    <ActionIcon
+                      size="xs"
+                      variant="subtle"
+                      c={isActive ? '#0a0a0a' : 'red.6'}
+                      onClick={() => onDelete(p)}
+                      aria-label="Delete"
+                    >
+                      <IconTrash size={12} />
+                    </ActionIcon>
+                  )}
                 </Group>
               );
             })}

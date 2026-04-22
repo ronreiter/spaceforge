@@ -28,14 +28,22 @@ export type WysiwygEditorProps = {
   onChange: (markdown: string) => void;
   templateCss: string;
   placeholder?: string;
+  readOnly?: boolean;
 };
 
 // The wrapper class under which all template CSS is scoped. Kept stable
 // because stylesheets in <style> blocks reference it literally.
 const CANVAS_CLASS = 'sf-editor-canvas';
 
-export function WysiwygEditor({ value, onChange, templateCss, placeholder }: WysiwygEditorProps) {
+export function WysiwygEditor({
+  value,
+  onChange,
+  templateCss,
+  placeholder,
+  readOnly,
+}: WysiwygEditorProps) {
   const editor = useEditor({
+    editable: !readOnly,
     extensions: [
       StarterKit.configure({
         // Use defaults; the heading extension supports H1..H6. Disable
@@ -66,6 +74,12 @@ export function WysiwygEditor({ value, onChange, templateCss, placeholder }: Wys
       onChange(htmlToMarkdown(html));
     },
   });
+
+  // setEditable imperatively when prop changes (TipTap useEditor options
+  // don't re-apply on re-render).
+  useEffect(() => {
+    if (editor) editor.setEditable(!readOnly);
+  }, [editor, readOnly]);
 
   // Guard against infinite loops: we only swap content back in when the
   // incoming prop differs from what the editor would currently serialize.

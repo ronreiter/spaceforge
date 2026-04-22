@@ -25,6 +25,9 @@ export type EditorViewProps = {
   onFileChange: (path: string, contents: string) => void;
   onFileCreate: (path: string, contents: string) => void;
   onFileDelete: (path: string) => void;
+  // When true, Monaco is read-only, TipTap is non-editable, and the
+  // "New file" / "Delete file" affordances are hidden. Viewer role.
+  readOnly?: boolean;
 };
 
 function defaultPath(files: Record<string, string>): string | null {
@@ -61,6 +64,7 @@ export function EditorView({
   onFileChange,
   onFileCreate,
   onFileDelete,
+  readOnly,
 }: EditorViewProps) {
   const [selected, setSelected] = useState<string | null>(() => defaultPath(files));
   const [subTab, setSubTab] = useState<SubTab>('visual');
@@ -96,6 +100,7 @@ export function EditorView({
         onSelect={setSelected}
         onFileCreate={onFileCreate}
         onFileDelete={onFileDelete}
+        readOnly={readOnly}
       />
       <Box style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
         {!active ? (
@@ -160,6 +165,7 @@ export function EditorView({
                   source={files[active] ?? ''}
                   templateCss={templateCss}
                   onFileChange={onFileChange}
+                  readOnly={readOnly}
                 />
               ) : (
                 <Center h="100%" p="xl">
@@ -176,6 +182,7 @@ export function EditorView({
                 path={active}
                 value={files[active] ?? ''}
                 onChange={(v) => onFileChange(active, v)}
+                readOnly={readOnly}
               />
             </Tabs.Panel>
           </Tabs>
@@ -189,10 +196,12 @@ function SourceEditor({
   path,
   value,
   onChange,
+  readOnly,
 }: {
   path: string;
   value: string;
   onChange: (value: string) => void;
+  readOnly?: boolean;
 }) {
   const computed = useComputedColorScheme('dark');
   const monacoTheme = computed === 'dark' ? 'vs-dark' : 'vs-light';
@@ -208,6 +217,7 @@ function SourceEditor({
         minimap: { enabled: false },
         wordWrap: 'on',
         scrollBeyondLastLine: false,
+        readOnly: !!readOnly,
       }}
       onChange={(v) => onChange(v ?? '')}
     />
@@ -219,9 +229,10 @@ type PageEditorProps = {
   source: string;
   templateCss: string;
   onFileChange: (path: string, contents: string) => void;
+  readOnly?: boolean;
 };
 
-function PageEditor({ path, source, templateCss, onFileChange }: PageEditorProps) {
+function PageEditor({ path, source, templateCss, onFileChange, readOnly }: PageEditorProps) {
   const initial = useMemo(() => parseFrontMatter(source), [source]);
   const [data, setData] = useState<Record<string, unknown>>(initial.data);
   const [body, setBody] = useState<string>(initial.body);
@@ -272,6 +283,8 @@ function PageEditor({ path, source, templateCss, onFileChange }: PageEditorProps
           value={title}
           onChange={(e) => updateField('title', e.currentTarget.value)}
           placeholder="Page title"
+          readOnly={readOnly}
+          disabled={readOnly}
         />
         <TextInput
           size="sm"
@@ -279,6 +292,8 @@ function PageEditor({ path, source, templateCss, onFileChange }: PageEditorProps
           value={description}
           onChange={(e) => updateField('description', e.currentTarget.value)}
           placeholder="Short description (shown in meta tags)"
+          readOnly={readOnly}
+          disabled={readOnly}
         />
       </Stack>
       <Box style={{ flex: 1, minHeight: 0 }}>
@@ -287,6 +302,7 @@ function PageEditor({ path, source, templateCss, onFileChange }: PageEditorProps
           onChange={onBodyChange}
           templateCss={templateCss}
           placeholder="Write your page content here…"
+          readOnly={readOnly}
         />
       </Box>
     </Box>

@@ -135,6 +135,9 @@ export type ChatProps = {
   queuedPrompt?: string | null;
   onSend: (text: string) => void;
   onClearQueue: () => void;
+  // When true, hides the seed suggestions, disables the input, and blocks
+  // submit. Used for viewer-role collaborators.
+  readOnly?: boolean;
 };
 
 const SUGGESTIONS = [
@@ -152,6 +155,7 @@ export function Chat({
   queuedPrompt,
   onSend,
   onClearQueue,
+  readOnly,
 }: ChatProps) {
   const [input, setInput] = useState('');
   const viewport = useRef<HTMLDivElement>(null);
@@ -161,6 +165,7 @@ export function Chat({
   }, [messages, statusLine, queuedPrompt]);
 
   function submit() {
+    if (readOnly) return;
     const text = input.trim();
     if (!text) return;
     if (sendState === 'generating') return; // block while generating; queue only while loading
@@ -191,7 +196,7 @@ export function Chat({
     <Stack h="100%" gap={0}>
       <ScrollArea viewportRef={viewport} style={{ flex: 1 }} type="auto">
         <Stack p="sm" gap="xs">
-          {visible.length === 0 && (
+          {visible.length === 0 && !readOnly && (
             <Stack gap="xs">
               <Group gap={6} mb={4}>
                 <IconSparkles size={14} color="var(--mantine-color-neon-3)" />
@@ -215,6 +220,14 @@ export function Chat({
                 </Paper>
               ))}
             </Stack>
+          )}
+          {visible.length === 0 && readOnly && (
+            <Group gap={6}>
+              <IconSparkles size={14} color="var(--mantine-color-dimmed)" />
+              <Text size="xs" c="dimmed">
+                You're viewing this site as a viewer. The editor is read-only.
+              </Text>
+            </Group>
           )}
           {visible.map((m, i) => (
             <Paper
@@ -300,11 +313,11 @@ export function Chat({
         <Textarea
           value={input}
           onChange={(e) => setInput(e.currentTarget.value)}
-          placeholder="Message Spaceforge…"
+          placeholder={readOnly ? 'Read-only — you can browse but not edit' : 'Message Spaceforge…'}
           autosize
           minRows={3}
           maxRows={8}
-          disabled={sendState === 'generating'}
+          disabled={readOnly || sendState === 'generating'}
           onKeyDown={(e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
               e.preventDefault();
@@ -314,7 +327,7 @@ export function Chat({
         />
         <Button
           onClick={submit}
-          disabled={sendState === 'generating' || !input.trim()}
+          disabled={readOnly || sendState === 'generating' || !input.trim()}
           fullWidth
           mt="xs"
           size="sm"
