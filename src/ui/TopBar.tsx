@@ -158,15 +158,6 @@ export function TopBar(p: TopBarProps) {
                 /s/{p.siteSlug}
               </Text>
             </Box>
-            {p.publishedAt ? (
-              <Badge size="xs" color="green">
-                published
-              </Badge>
-            ) : (
-              <Badge size="xs" color="gray">
-                draft
-              </Badge>
-            )}
             {!canWrite && (
               <Badge size="xs" color="blue">
                 {p.role}
@@ -256,6 +247,16 @@ export function TopBar(p: TopBarProps) {
             Unpublish
           </Button>
         )}
+        {hasSite &&
+          (p.publishedAt ? (
+            <Badge size="xs" color="green">
+              published
+            </Badge>
+          ) : (
+            <Badge size="xs" color="gray">
+              draft
+            </Badge>
+          ))}
         {hasSite && canWrite && (
           <Button
             size="xs"
