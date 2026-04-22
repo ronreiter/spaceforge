@@ -1,3 +1,7 @@
+import { journalTemplate } from './bundles/journal';
+import { gazetteTemplate } from './bundles/gazette';
+import { orbitTemplate } from './bundles/orbit';
+
 export type TemplateBundle = {
   id: string;
   name: string;
@@ -19,6 +23,9 @@ export const TEMPLATES: TemplateBundle[] = [
       'The model writes its own _layout.njk, _header.njk, _footer.njk, and styles.css.',
     files: {},
   },
+  journalTemplate,
+  gazetteTemplate,
+  orbitTemplate,
 ];
 
 export function getTemplate(id: string): TemplateBundle | undefined {

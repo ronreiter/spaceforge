@@ -99,6 +99,18 @@ export function resolveRoute(
 
 export { outputPath };
 
+// Force Pico's light color scheme on the document. Pico's dark-mode rules are
+// gated on `:root:not([data-theme=light])` — so setting `data-theme="light"`
+// on <html> turns them off. Model-authored styles.css files consistently use
+// light-mode colors (white backgrounds, dark headings), and Pico flipping to
+// dark on a light-preferring browser used to produce unreadable white-on-white
+// bodies. Pinning the root to light makes the theme deterministic.
+function forceLightTheme(doc: Document): void {
+  if (doc.documentElement) {
+    doc.documentElement.setAttribute('data-theme', 'light');
+  }
+}
+
 // Inject framework styles (Pico classless, Google Fonts, Tabler icons) into a
 // rendered HTML page WITHOUT adding the preview-only nav-runtime script and
 // without inlining local stylesheets/scripts — the zip export ships the raw
@@ -106,6 +118,7 @@ export { outputPath };
 // duplicate bytes. Exported pages stand alone when opened directly.
 export function injectFrameworkForExport(html: string): string {
   const doc = new DOMParser().parseFromString(html, 'text/html');
+  forceLightTheme(doc);
   const head = doc.head ?? doc.documentElement;
 
   const framework = doc.createElement('style');
@@ -130,6 +143,7 @@ export function injectFrameworkForExport(html: string): string {
 
 export function renderPage(html: string, files: Record<string, string>): string {
   const doc = new DOMParser().parseFromString(html, 'text/html');
+  forceLightTheme(doc);
 
   doc.querySelectorAll('link[rel="stylesheet"][href]').forEach((link) => {
     const href = link.getAttribute('href') || '';

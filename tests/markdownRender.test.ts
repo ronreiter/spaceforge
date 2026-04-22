@@ -95,8 +95,25 @@ describe('parseFrontMatter lenient mode', () => {
     expect(body).not.toContain('title: About');
   });
 
+  it('accepts a bare key:value block followed by a blank line (no fences at all)', () => {
+    const src = `layout: _layout.njk\ntitle: About\ndescription: about me\n\n# Body\n\nParagraph.\n`;
+    const { data, body } = parseFrontMatter(src);
+    expect(data.layout).toBe('_layout.njk');
+    expect(data.title).toBe('About');
+    expect(data.description).toBe('about me');
+    expect(body).toContain('# Body');
+    expect(body).not.toContain('title: About');
+  });
+
   it('does not treat plain markdown with a trailing --- as front matter', () => {
     const src = `# Heading\n\nSome text\n---\nmore\n`;
+    const { data, body } = parseFrontMatter(src);
+    expect(data).toEqual({});
+    expect(body).toBe(src);
+  });
+
+  it('does not treat prose starting with "x: y" as front matter when it has no recognizable closing', () => {
+    const src = `author: Ana wrote this\nthen a bunch of text\nand more text\nstill going.\n`;
     const { data, body } = parseFrontMatter(src);
     expect(data).toEqual({});
     expect(body).toBe(src);

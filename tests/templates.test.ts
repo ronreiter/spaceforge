@@ -7,6 +7,7 @@ import {
   getTemplate,
   type TemplateBundle,
 } from '../src/templates/registry';
+import { renderMarkdownPage } from '../src/runtime/markdownRender';
 
 describe('template registry', () => {
   it('exposes the Custom entry as the default', () => {
@@ -32,6 +33,19 @@ describe('overlayFiles', () => {
   it('returns site files untouched for an unknown template id', () => {
     const out = overlayFiles(siteFiles, 'nonexistent');
     expect(out).toEqual(siteFiles);
+  });
+
+  it('each bundled template renders a sample page without Nunjucks errors', () => {
+    const sampleMd = `---\nlayout: _layout.njk\ntitle: Hello\ndescription: sample page\n---\n# Hi there\n\nSome paragraph.\n`;
+    const templates = TEMPLATES.filter((t) => t.id !== CUSTOM_TEMPLATE_ID);
+    expect(templates.length).toBeGreaterThan(0);
+    for (const tpl of templates) {
+      const files = { 'index.md': sampleMd, ...tpl.files };
+      const rendered = renderMarkdownPage('index.md', files);
+      expect(rendered, `template ${tpl.id} produced empty output`).toBeTruthy();
+      expect(rendered).toContain('Hi there');
+      expect(rendered).toContain('<body');
+    }
   });
 
   it('shadows site files when a template owns the same key', () => {
