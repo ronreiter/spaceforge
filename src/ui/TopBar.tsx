@@ -1,14 +1,27 @@
-import { Group, Text, Button, Progress, ActionIcon, Tooltip, Box } from '@mantine/core';
+import {
+  Anchor,
+  Badge,
+  Box,
+  Button,
+  Group,
+  Progress,
+  ActionIcon,
+  Text,
+  Tooltip,
+} from '@mantine/core';
 import {
   useMantineColorScheme,
   useComputedColorScheme,
 } from '@mantine/core';
 import {
+  IconArrowLeft,
   IconDownload,
-  IconTrash,
+  IconEye,
+  IconRocket,
+  IconRocketOff,
   IconSun,
   IconMoon,
-  IconRocket,
+  IconTrash,
 } from '@tabler/icons-react';
 import { ModelSelector } from './ModelSelector';
 
@@ -21,6 +34,15 @@ export type TopBarProps = {
   progressPct?: number;
   onStartFresh: () => void;
   onDownloadZip: () => void;
+  // Multi-tenant site context (optional — only set at /sites/:id):
+  dashboardHref?: string;
+  siteName?: string;
+  siteSlug?: string;
+  role?: 'owner' | 'admin' | 'editor' | 'viewer';
+  publishedAt?: string | null;
+  publishing?: boolean;
+  onPublish?: () => void;
+  onUnpublish?: () => void;
 };
 
 export function TopBar(p: TopBarProps) {
@@ -31,6 +53,10 @@ export function TopBar(p: TopBarProps) {
   const statusColor =
     p.statusKind === 'ready' ? 'teal' : p.statusKind === 'error' ? 'red' : 'blue';
 
+  const hasSite = typeof p.siteSlug === 'string';
+  const canWrite =
+    !hasSite || p.role === 'owner' || p.role === 'admin' || p.role === 'editor';
+
   return (
     <Box
       px="md"
@@ -40,19 +66,78 @@ export function TopBar(p: TopBarProps) {
       }}
     >
       <Group gap="md" wrap="nowrap" align="center">
-        <Group gap={10} wrap="nowrap" align="center">
+        {p.dashboardHref && (
+          <Tooltip label="Back to dashboard">
+            <Anchor href={p.dashboardHref} c="dimmed">
+              <Group gap={4} wrap="nowrap">
+                <IconArrowLeft size={14} />
+                <Text size="xs">Dashboard</Text>
+              </Group>
+            </Anchor>
+          </Tooltip>
+        )}
+        <Group gap={8} wrap="nowrap" align="center">
           <IconRocket
-            size={28}
+            size={24}
             stroke={1.8}
             color="var(--mantine-color-neon-3)"
           />
-          <Text fw={700} size="lg">
-            Spaceforge
-          </Text>
-          <Text c="dimmed" size="xs">
-            browser-local website builder
-          </Text>
+          {!hasSite && (
+            <>
+              <Text fw={700} size="md">
+                Spaceforge
+              </Text>
+              <Text c="dimmed" size="xs" visibleFrom="md">
+                browser-local website builder
+              </Text>
+            </>
+          )}
         </Group>
+        {hasSite && (
+          <Group gap={8} wrap="nowrap" align="center" style={{ minWidth: 0 }}>
+            <Box style={{ minWidth: 0 }}>
+              <Text
+                fw={600}
+                size="sm"
+                style={{
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: 220,
+                }}
+              >
+                {p.siteName}
+              </Text>
+              <Text
+                size="xs"
+                c="dimmed"
+                ff="monospace"
+                style={{
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: 220,
+                }}
+              >
+                /s/{p.siteSlug}
+              </Text>
+            </Box>
+            {p.publishedAt ? (
+              <Badge size="xs" color="green">
+                published
+              </Badge>
+            ) : (
+              <Badge size="xs" color="gray">
+                draft
+              </Badge>
+            )}
+            {!canWrite && (
+              <Badge size="xs" color="blue">
+                {p.role}
+              </Badge>
+            )}
+          </Group>
+        )}
 
         <ModelSelector
           value={p.modelId}
@@ -96,23 +181,58 @@ export function TopBar(p: TopBarProps) {
           </ActionIcon>
         </Tooltip>
 
-        <Button
-          variant="light"
-          size="xs"
-          leftSection={<IconDownload size={14} />}
-          onClick={p.onDownloadZip}
-        >
-          Download .zip
-        </Button>
-        <Button
-          variant="light"
-          color="red"
-          size="xs"
-          leftSection={<IconTrash size={14} />}
-          onClick={p.onStartFresh}
-        >
-          Start fresh
-        </Button>
+        <Tooltip label="Download .zip">
+          <ActionIcon
+            variant="default"
+            size="lg"
+            onClick={p.onDownloadZip}
+            aria-label="Download .zip"
+          >
+            <IconDownload size={16} />
+          </ActionIcon>
+        </Tooltip>
+        {hasSite && p.publishedAt && (
+          <Tooltip label="Open published site">
+            <Anchor href={`/s/${p.siteSlug}/`} target="_blank" rel="noopener">
+              <Button variant="light" size="xs" leftSection={<IconEye size={14} />} component="span">
+                View
+              </Button>
+            </Anchor>
+          </Tooltip>
+        )}
+        {hasSite && canWrite && p.publishedAt && (
+          <Button
+            variant="light"
+            color="red"
+            size="xs"
+            leftSection={<IconRocketOff size={14} />}
+            onClick={p.onUnpublish}
+            loading={p.publishing}
+          >
+            Unpublish
+          </Button>
+        )}
+        {hasSite && canWrite && (
+          <Button
+            size="xs"
+            leftSection={<IconRocket size={14} />}
+            onClick={p.onPublish}
+            loading={p.publishing}
+          >
+            {p.publishedAt ? 'Republish' : 'Publish'}
+          </Button>
+        )}
+        {!hasSite && (
+          <Button
+            variant="light"
+            color="red"
+            size="xs"
+            leftSection={<IconTrash size={14} />}
+            onClick={p.onStartFresh}
+          >
+            Start fresh
+          </Button>
+        )}
       </Group>
     </Box>
   );

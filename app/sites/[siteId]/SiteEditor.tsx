@@ -1,23 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
-import {
-  Anchor,
-  Badge,
-  Box,
-  Button,
-  Group,
-  Text,
-  Tooltip,
-} from '@mantine/core';
-import {
-  IconArrowLeft,
-  IconEye,
-  IconRocket,
-  IconRocketOff,
-} from '@tabler/icons-react';
 
 // The existing src/App.tsx editor. Pulls in transformers.js, Monaco,
 // TipTap, and other client-only bundles — load without SSR so the
@@ -32,6 +16,10 @@ type PublishState = {
   error: string | null;
 };
 
+// Owns the publish state and hands callbacks + site metadata into <App />
+// via the `chrome` prop. The existing TopBar inside App renders the
+// controls so there's a single header (avoids the z-index / stacking
+// conflict with Mantine AppShell's sticky header).
 export function SiteEditor({
   siteId,
   siteName,
@@ -51,9 +39,7 @@ export function SiteEditor({
     error: null,
   });
 
-  const canWrite = role === 'owner' || role === 'admin' || role === 'editor';
-
-  async function publish() {
+  const publish = useCallback(async () => {
     setState((s) => ({ ...s, publishing: true, error: null }));
     const res = await fetch(`/api/sites/${siteId}/publish`, { method: 'POST' });
     if (!res.ok) {
@@ -67,9 +53,9 @@ export function SiteEditor({
     }
     const body = (await res.json()) as { result: { publishedAt: string } };
     setState({ publishedAt: body.result.publishedAt, publishing: false, error: null });
-  }
+  }, [siteId]);
 
-  async function unpublish() {
+  const unpublish = useCallback(async () => {
     if (!confirm('Take this site offline? Visitors will see 404 until you republish.')) return;
     setState((s) => ({ ...s, publishing: true, error: null }));
     const res = await fetch(`/api/sites/${siteId}/publish`, { method: 'DELETE' });
@@ -83,97 +69,21 @@ export function SiteEditor({
       return;
     }
     setState({ publishedAt: null, publishing: false, error: null });
-  }
+  }, [siteId]);
 
   return (
-    <Box style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <Box
-        px="md"
-        py={6}
-        style={{
-          borderBottom: '1px solid var(--mantine-color-default-border)',
-          background: 'var(--mantine-color-body)',
-        }}
-      >
-        <Group gap="sm" wrap="nowrap">
-          <Tooltip label="Back to dashboard">
-            <Anchor component={Link} href="/dashboard" c="dimmed">
-              <Group gap={4}>
-                <IconArrowLeft size={14} />
-                <Text size="xs">Dashboard</Text>
-              </Group>
-            </Anchor>
-          </Tooltip>
-          <Text fw={600} size="sm">
-            {siteName}
-          </Text>
-          <Text size="xs" c="dimmed" ff="monospace">
-            /s/{siteSlug}
-          </Text>
-          {state.publishedAt ? (
-            <Badge size="xs" color="green">
-              published
-            </Badge>
-          ) : (
-            <Badge size="xs" color="gray">
-              draft
-            </Badge>
-          )}
-          {!canWrite && (
-            <Badge size="xs" color="blue">
-              read-only ({role})
-            </Badge>
-          )}
-          <Box style={{ flex: 1 }} />
-          {state.error && (
-            <Text c="red" size="xs">
-              {state.error}
-            </Text>
-          )}
-          {state.publishedAt && (
-            <Tooltip label="Open published site">
-              <Anchor
-                href={`/s/${siteSlug}/`}
-                target="_blank"
-                rel="noopener"
-                size="xs"
-              >
-                <Group gap={4}>
-                  <IconEye size={14} />
-                  <Text size="xs">View</Text>
-                </Group>
-              </Anchor>
-            </Tooltip>
-          )}
-          {canWrite && (
-            <>
-              {state.publishedAt ? (
-                <Button
-                  variant="light"
-                  color="red"
-                  size="xs"
-                  leftSection={<IconRocketOff size={14} />}
-                  onClick={unpublish}
-                  loading={state.publishing}
-                >
-                  Unpublish
-                </Button>
-              ) : null}
-              <Button
-                size="xs"
-                leftSection={<IconRocket size={14} />}
-                onClick={publish}
-                loading={state.publishing}
-              >
-                {state.publishedAt ? 'Republish' : 'Publish'}
-              </Button>
-            </>
-          )}
-        </Group>
-      </Box>
-      <Box style={{ flex: 1, minHeight: 0 }}>
-        <App siteId={siteId} />
-      </Box>
-    </Box>
+    <App
+      siteId={siteId}
+      chrome={{
+        dashboardHref: '/dashboard',
+        siteName,
+        siteSlug,
+        role,
+        publishedAt: state.publishedAt,
+        publishing: state.publishing,
+        onPublish: publish,
+        onUnpublish: unpublish,
+      }}
+    />
   );
 }

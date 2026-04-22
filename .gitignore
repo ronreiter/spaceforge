@@ -11,3 +11,8 @@ next-env.d.ts
 tsconfig.tsbuildinfo
 *.tsbuildinfo
 .claude/
+.playwright-mcp/
+/test-results/
+/screenshots/
+# Ad-hoc Playwright MCP screenshots land at the repo root.
+/[0-9][0-9]-*.png

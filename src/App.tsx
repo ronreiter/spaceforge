@@ -54,17 +54,32 @@ import { Center, Loader, Stack, Text } from '@mantine/core';
 
 type StatusKind = 'loading' | 'ready' | 'error';
 
+export type SiteChrome = {
+  // Multi-tenant site context surfaced in the TopBar. None of these are
+  // required for the editor to work; they just let the TopBar show the
+  // back-to-dashboard link, site name, publish controls, etc.
+  siteName?: string;
+  siteSlug?: string;
+  role?: 'owner' | 'admin' | 'editor' | 'viewer';
+  publishedAt?: string | null;
+  dashboardHref?: string;
+  publishing?: boolean;
+  onPublish?: () => void;
+  onUnpublish?: () => void;
+};
+
 export type AppProps = {
   // When provided, the editor loads/saves through /api/sites/:id/files.
   // When absent, falls back to the single-browser localStorage store
   // (used for tests and anywhere the editor runs without a site route).
   siteId?: string;
+  chrome?: SiteChrome;
 };
 
 export default function App(props: AppProps = {}) {
   return (
     <BrowserGate>
-      <AppInner siteId={props.siteId} />
+      <AppInner siteId={props.siteId} chrome={props.chrome} />
     </BrowserGate>
   );
 }
@@ -80,14 +95,20 @@ function useLocalSite(): [SiteState, React.Dispatch<React.SetStateAction<SiteSta
   return [site, setSite];
 }
 
-function AppInner({ siteId }: { siteId?: string }) {
+function AppInner({ siteId, chrome }: { siteId?: string; chrome?: SiteChrome }) {
   if (siteId) {
-    return <AppInnerServerSite siteId={siteId} />;
+    return <AppInnerServerSite siteId={siteId} chrome={chrome} />;
   }
   return <AppInnerLocalSite />;
 }
 
-function AppInnerServerSite({ siteId }: { siteId: string }) {
+function AppInnerServerSite({
+  siteId,
+  chrome,
+}: {
+  siteId: string;
+  chrome?: SiteChrome;
+}) {
   const { status, site, setSite, error, saving, lastSavedAt } =
     useServerSite(siteId);
   if (status === 'loading' || !site) {
@@ -119,6 +140,7 @@ function AppInnerServerSite({ siteId }: { siteId: string }) {
       setSite={setSite}
       saving={saving}
       lastSavedAt={lastSavedAt}
+      chrome={chrome}
     />
   );
 }
@@ -133,11 +155,13 @@ function AppInnerBody({
   setSite,
   saving,
   lastSavedAt,
+  chrome,
 }: {
   site: SiteState;
   setSite: (updater: SiteState | ((s: SiteState) => SiteState)) => void;
   saving: boolean;
   lastSavedAt: number | null;
+  chrome?: SiteChrome;
 }) {
   // Surface save state to the console for now — the TopBar gains a
   // visible "saved Nm ago" indicator in a follow-up.
@@ -445,6 +469,14 @@ function AppInnerBody({
           progressPct={progressPct}
           onDownloadZip={onDownloadZip}
           onStartFresh={onStartFresh}
+          dashboardHref={chrome?.dashboardHref}
+          siteName={chrome?.siteName}
+          siteSlug={chrome?.siteSlug}
+          role={chrome?.role}
+          publishedAt={chrome?.publishedAt}
+          publishing={chrome?.publishing}
+          onPublish={chrome?.onPublish}
+          onUnpublish={chrome?.onUnpublish}
         />
       </AppShell.Header>
 
