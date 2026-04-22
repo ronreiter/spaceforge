@@ -88,18 +88,80 @@ tasks:
 
   # --- Local development -------------------------------------------------
 
-  dev:
-    desc: Run the Vite dev server (reads UNSPLASH_ACCESS_KEY from .env.local)
+  setup:
+    desc: One-shot local bootstrap — docker up, migrate, seed dev user
     cmds:
-      - npm run dev
+      - npm install
+      - docker compose up -d
+      - sleep 2
+      - npm run db:migrate
+      - DATABASE_URL=postgres://spaceforge:spaceforge@localhost:5432/spaceforge npm run db:seed:dev
+
+  dev:
+    desc: Run the full local stack — Next.js + AUTH_DRIVER=dev + FsBlobDriver + Docker Postgres
+    deps: [backend:up]
+    cmds:
+      - npm run dev:local
 
   dev:vercel:
-    desc: Run `vercel dev` — serves api/ functions using Vercel's runtime
+    desc: Run `vercel dev` — reads env from Vercel, uses real Clerk/Neon/Blob
     cmds:
       - '{{.VERCEL}} dev'
 
+  # --- Backend plumbing (Docker Postgres) --------------------------------
+
+  backend:up:
+    desc: Start local Postgres in Docker (idempotent)
+    cmds:
+      - docker compose up -d
+      - docker compose ps
+
+  backend:down:
+    desc: Stop local Postgres (keeps data in the named volume)
+    cmds:
+      - docker compose down
+
+  backend:wipe:
+    desc: Stop Postgres AND wipe the data volume. Re-run task setup after.
+    cmds:
+      - docker compose down -v
+
+  backend:logs:
+    desc: Tail Postgres logs
+    cmds:
+      - docker compose logs -f postgres
+
+  backend:psql:
+    desc: Open a psql shell inside the Postgres container
+    cmds:
+      - docker exec -it spaceforge-postgres psql -U spaceforge -d spaceforge
+
+  # --- Database (Drizzle) ------------------------------------------------
+
+  db:migrate:
+    desc: Apply pending Drizzle migrations to local Postgres
+    cmds:
+      - npm run db:migrate
+
+  db:generate:
+    desc: Generate a migration from schema changes. Usage — task db:generate -- --name my_change
+    cmds:
+      - npm run db:generate -- {{.CLI_ARGS}}
+
+  db:seed:
+    desc: Insert the dev user + team so AUTH_DRIVER=dev has something to reference
+    cmds:
+      - DATABASE_URL=postgres://spaceforge:spaceforge@localhost:5432/spaceforge npm run db:seed:dev
+
+  db:studio:
+    desc: Open Drizzle Studio in your browser to browse the DB
+    cmds:
+      - DATABASE_URL=postgres://spaceforge:spaceforge@localhost:5432/spaceforge npm run db:studio
+
+  # --- Quality -----------------------------------------------------------
+
   build:
-    desc: Production build (tsc + vite build)
+    desc: Production build (next build)
     cmds:
       - npm run build
 
@@ -112,3 +174,8 @@ tasks:
     desc: Run vitest once
     cmds:
       - npm run test
+
+  e2e:
+    desc: Run the Playwright headless walk-through (dev server must already be running)
+    cmds:
+      - npm run e2e
