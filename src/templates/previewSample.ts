@@ -67,17 +67,25 @@ const SAMPLE_FILES: Record<string, string> = {
   'styles.css': SAMPLE_STYLES_CSS,
 };
 
-// Render the template gallery thumbnail HTML for a given bundle. Returns a
-// full self-contained HTML document with Pico + Google Fonts + Tabler icons
-// injected (same as zip export), so the iframe looks exactly like a real
-// exported page.
+// Render the template gallery thumbnail HTML for a given bundle. The sandbox
+// iframe has no server to resolve `<link href="styles.css">`, so we inline
+// the template's stylesheet into the rendered HTML before handing it to the
+// iframe. Pico + Google Fonts + Tabler icons are added on top, same as the
+// zip export path.
 export function renderTemplatePreviewHtml(template: TemplateBundle): string {
   const overlay = overlayFiles(SAMPLE_FILES, template.id);
   try {
-    const html = renderMarkdownPage('index.md', overlay);
-    return injectFrameworkForExport(html);
+    const rendered = renderMarkdownPage('index.md', overlay);
+    const withInlineCss = inlineStylesheet(rendered, 'styles.css', overlay['styles.css'] ?? '');
+    return injectFrameworkForExport(withInlineCss);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return `<!doctype html><html><body style="padding:1rem;font-family:sans-serif;color:#b00"><pre>preview error: ${message}</pre></body></html>`;
   }
+}
+
+function inlineStylesheet(html: string, href: string, css: string): string {
+  const escaped = href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`<link[^>]*href=["']${escaped}["'][^>]*>`, 'i');
+  return html.replace(re, `<style data-spaceforge-preview="${href}">${css}</style>`);
 }
