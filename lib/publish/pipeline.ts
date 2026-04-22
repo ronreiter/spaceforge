@@ -117,7 +117,7 @@ export async function publishSite(
       // Markdown → HTML via layout → inject framework → upload as .html
       if (isMarkdown(path)) {
         if (isPartial(path)) continue;
-        const rendered = injectFrameworkServer(renderMarkdownPage(path, overlay));
+        const rendered = injectFrameworkServer(renderMarkdownPage(path, overlay), slug);
         const out = outputPath(path);
         const key = `pub/${slug}/${version.id}/${out}`;
         const res = await blob.put(key, rendered, {
@@ -133,7 +133,7 @@ export async function publishSite(
       // matter), so isPageTemplate handles that.
       if (isTemplate(path)) {
         if (!isPageTemplate(path)) continue;
-        const rendered = injectFrameworkServer(renderTemplate(path, overlay));
+        const rendered = injectFrameworkServer(renderTemplate(path, overlay), slug);
         const out = outputPath(path);
         const key = `pub/${slug}/${version.id}/${out}`;
         const res = await blob.put(key, rendered, {
@@ -147,7 +147,7 @@ export async function publishSite(
       // Raw .html pages emitted by the model — still inject framework so
       // they stand alone in the published tree.
       if (path.toLowerCase().endsWith('.html')) {
-        const rendered = injectFrameworkServer(content);
+        const rendered = injectFrameworkServer(content, slug);
         const key = `pub/${slug}/${version.id}/${path}`;
         const res = await blob.put(key, rendered, {
           contentType: 'text/html; charset=utf-8',

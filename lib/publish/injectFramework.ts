@@ -43,7 +43,11 @@ h1, h2, h3, h4, h5, h6 {
 
 const PICO_CLASSLESS = stripPicoLayoutConstraints(picoClasslessCss);
 
-export function injectFrameworkServer(html: string): string {
+// slug is used to emit a <base href="/s/<slug>/"> tag so relative links
+// like `<a href="about.html">` resolve against the site's root regardless
+// of how Next.js canonicalizes the viewer's URL (trailing slash stripped,
+// hash fragments, etc).
+export function injectFrameworkServer(html: string, slug?: string): string {
   const { document } = parseHTML(html);
   if (document.documentElement) {
     document.documentElement.setAttribute('data-theme', 'light');
@@ -66,6 +70,17 @@ export function injectFrameworkServer(html: string): string {
   iconsLink.setAttribute('href', TABLER_ICONS_URL);
   iconsLink.setAttribute(ICONS_LINK_MARKER, 'tabler');
   head.insertBefore(iconsLink, head.firstChild);
+
+  // <base href="/s/<slug>/"> makes relative hrefs (about.html, styles.css,
+  // images/…) resolve against the site root regardless of the current URL
+  // the visitor is on. Without this, `/s/<slug>` (trailing slash stripped
+  // by Next.js) would resolve relative hrefs to `/s/…` (parent) instead
+  // of `/s/<slug>/…` (within-site).
+  if (slug) {
+    const base = document.createElement('base');
+    base.setAttribute('href', `/s/${slug}/`);
+    head.insertBefore(base, head.firstChild);
+  }
 
   return '<!doctype html>\n' + document.documentElement.outerHTML;
 }
