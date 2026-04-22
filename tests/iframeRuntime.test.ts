@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { renderPage, NAV_RUNTIME_MARKER } from '../src/runtime/iframeRuntime';
+import {
+  renderPage,
+  resolvePage,
+  resolveRoute,
+  NAV_RUNTIME_MARKER,
+} from '../src/runtime/iframeRuntime';
 
 const files: Record<string, string> = {
   'index.html':
@@ -38,5 +43,52 @@ describe('renderPage', () => {
   it('preserves anchor links', () => {
     const out = renderPage(files['index.html'], files);
     expect(out).toContain('href="about.html"');
+  });
+});
+
+describe('resolvePage', () => {
+  it('renders .md pages through their Nunjucks layout', () => {
+    const files = {
+      'index.md': `---\nlayout: _layout.njk\ntitle: Home\n---\n# Hello\n`,
+      '_layout.njk':
+        '<!doctype html><html><head><title>{{ title }}</title></head><body><main>{{ content | safe }}</main></body></html>',
+    };
+    const html = resolvePage('index.md', files);
+    expect(html).toContain('<title>Home</title>');
+    expect(html).toContain('<h1>Hello</h1>');
+  });
+
+  it('renders .njk pages as-is', () => {
+    const files = {
+      'page.njk': '<p>{{ "hi" }}</p>',
+    };
+    const html = resolvePage('page.njk', files);
+    expect(html).toContain('<p>hi</p>');
+  });
+
+  it('returns .html source verbatim', () => {
+    const files = { 'page.html': '<p>raw</p>' };
+    expect(resolvePage('page.html', files)).toBe('<p>raw</p>');
+  });
+});
+
+describe('resolveRoute', () => {
+  it('maps .html hrefs to .md sources when only .md exists', () => {
+    const files = { 'about.md': '# about' };
+    expect(resolveRoute('about.html', files)).toBe('about.md');
+  });
+
+  it('prefers direct matches over extension rewrites', () => {
+    const files = { 'about.html': '<p/>', 'about.md': '# about' };
+    expect(resolveRoute('about.html', files)).toBe('about.html');
+  });
+
+  it('falls back to .njk when neither .html nor .md is present', () => {
+    const files = { 'about.njk': '<p/>' };
+    expect(resolveRoute('about.html', files)).toBe('about.njk');
+  });
+
+  it('returns null for unknown routes', () => {
+    expect(resolveRoute('missing.html', {})).toBe(null);
   });
 });

@@ -45,10 +45,6 @@ export function TopBar(p: TopBarProps) {
             size={28}
             stroke={1.8}
             color="var(--mantine-color-neon-3)"
-            style={{
-              filter:
-                'drop-shadow(0 0 6px var(--mantine-color-neon-4)) drop-shadow(0 0 2px var(--mantine-color-neon-5))',
-            }}
           />
           <Text fw={700} size="lg">
             Spaceforge

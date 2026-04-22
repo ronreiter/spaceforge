@@ -1,4 +1,5 @@
 import { sanitizePath, isAllowedPath } from './paths';
+import { CUSTOM_TEMPLATE_ID } from '../templates/registry';
 
 export type ChatMessage = { role: 'user' | 'assistant' | 'system'; content: string };
 
@@ -6,6 +7,7 @@ export type SiteState = {
   files: Record<string, string>;
   chatHistory: ChatMessage[];
   model: string;
+  templateId: string;
   createdAt: number;
   updatedAt: number;
 };
@@ -14,7 +16,14 @@ const KEY = 'spaceforge:site';
 
 export function emptySite(): SiteState {
   const now = Date.now();
-  return { files: {}, chatHistory: [], model: '', createdAt: now, updatedAt: now };
+  return {
+    files: {},
+    chatHistory: [],
+    model: '',
+    templateId: CUSTOM_TEMPLATE_ID,
+    createdAt: now,
+    updatedAt: now,
+  };
 }
 
 export function loadSite(): SiteState {
@@ -48,6 +57,11 @@ export function deleteFile(state: SiteState, path: string): SiteState {
   const { [path]: _removed, ...rest } = state.files;
   void _removed;
   return { ...state, files: rest, updatedAt: Date.now() };
+}
+
+export function setTemplate(state: SiteState, templateId: string): SiteState {
+  if (state.templateId === templateId) return state;
+  return { ...state, templateId, updatedAt: Date.now() };
 }
 
 export function clearSite(): void {

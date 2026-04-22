@@ -10,14 +10,120 @@ import {
   Badge,
   Loader,
   Box,
+  Collapse,
+  UnstyledButton,
 } from '@mantine/core';
 import {
   IconSend,
   IconHourglassHigh,
   IconBolt,
   IconSparkles,
+  IconChevronRight,
+  IconBrain,
 } from '@tabler/icons-react';
 import type { ChatMessage } from '../storage/files';
+
+type MessagePart =
+  | { type: 'text'; text: string }
+  | { type: 'think'; text: string; closed: boolean };
+
+function parseMessageContent(content: string): MessagePart[] {
+  const parts: MessagePart[] = [];
+  let i = 0;
+  while (i < content.length) {
+    const start = content.indexOf('<think>', i);
+    if (start === -1) {
+      parts.push({ type: 'text', text: content.slice(i) });
+      break;
+    }
+    if (start > i) parts.push({ type: 'text', text: content.slice(i, start) });
+    const end = content.indexOf('</think>', start + 7);
+    if (end === -1) {
+      parts.push({ type: 'think', text: content.slice(start + 7), closed: false });
+      return parts;
+    }
+    parts.push({ type: 'think', text: content.slice(start + 7, end), closed: true });
+    i = end + 8;
+  }
+  return parts;
+}
+
+function ThinkBlock({ text, closed }: { text: string; closed: boolean }) {
+  const [open, setOpen] = useState(false);
+  const label = closed ? 'Thought' : 'Thinking…';
+  return (
+    <Box my={4}>
+      <UnstyledButton
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          opacity: 0.7,
+          fontSize: 12,
+        }}
+      >
+        <IconChevronRight
+          size={12}
+          style={{
+            transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
+            transition: 'transform 120ms ease',
+          }}
+        />
+        <IconBrain size={12} />
+        <Text size="xs" c="dimmed" fs="italic">
+          {label}
+          {!closed && <Loader size={10} ml={6} />}
+        </Text>
+      </UnstyledButton>
+      <Collapse expanded={open}>
+        <Paper
+          withBorder
+          p="xs"
+          radius="sm"
+          mt={4}
+          style={{ background: 'var(--mantine-color-default-hover)' }}
+        >
+          <Text
+            size="xs"
+            c="dimmed"
+            style={{ whiteSpace: 'pre-wrap', lineHeight: 1.5 }}
+          >
+            {text.trim() || '…'}
+          </Text>
+        </Paper>
+      </Collapse>
+    </Box>
+  );
+}
+
+function MessageContent({ content }: { content: string }) {
+  if (!content) return <span style={{ opacity: 0.5 }}>…</span>;
+  const parts = parseMessageContent(content);
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.type === 'think' ? (
+          <ThinkBlock key={i} text={part.text} closed={part.closed} />
+        ) : (
+          <Text
+            key={i}
+            size="sm"
+            span
+            style={{
+              whiteSpace: 'pre-wrap',
+              lineHeight: 1.55,
+              color: 'inherit',
+              display: 'block',
+            }}
+          >
+            {part.text}
+          </Text>
+        ),
+      )}
+    </>
+  );
+}
 
 export type ChatSendState = 'idle' | 'queued' | 'generating' | 'loading-model';
 
@@ -74,7 +180,7 @@ export function Chat({
 
   const buttonIcon =
     sendState === 'generating' ? (
-      <Loader size={14} color="white" />
+      <Loader size={14} color="dark.9" />
     ) : sendState === 'loading-model' || sendState === 'queued' ? (
       <IconHourglassHigh size={14} />
     ) : (
@@ -121,16 +227,20 @@ export function Chat({
               maw="90%"
               style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start' }}
             >
-              <Text
-                size="sm"
-                style={{
-                  whiteSpace: 'pre-wrap',
-                  lineHeight: 1.55,
-                  color: 'inherit',
-                }}
-              >
-                {m.content || <span style={{ opacity: 0.5 }}>…</span>}
-              </Text>
+              {m.role === 'assistant' ? (
+                <MessageContent content={m.content} />
+              ) : (
+                <Text
+                  size="sm"
+                  style={{
+                    whiteSpace: 'pre-wrap',
+                    lineHeight: 1.55,
+                    color: 'inherit',
+                  }}
+                >
+                  {m.content || <span style={{ opacity: 0.5 }}>…</span>}
+                </Text>
+              )}
             </Paper>
           ))}
           {queuedPrompt && (
@@ -211,6 +321,11 @@ export function Chat({
           leftSection={buttonIcon}
           color={
             sendState === 'loading-model' || sendState === 'queued' ? 'blue' : undefined
+          }
+          c={
+            sendState === 'loading-model' || sendState === 'queued'
+              ? undefined
+              : 'dark.9'
           }
         >
           {buttonLabel}
