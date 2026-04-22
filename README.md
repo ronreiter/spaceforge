@@ -42,27 +42,44 @@ LLM runs entirely offline.
 
 ```bash
 npm install
-npm run dev        # local dev server
-npm run test       # unit tests
+npm run dev        # Next.js dev server on :3000
+npm run test       # unit tests (vitest)
 npm run typecheck  # tsc --noEmit
-npm run build      # production build
-npm run preview    # serve the production build locally
+npm run build      # Next.js production build
+npm run start      # serve the production build locally
 ```
+
+## Local dev environment
+
+Spaceforge runs end-to-end locally with no cloud dependencies. The
+multi-tenant pieces (DB, object storage) have local drivers selected by
+env var:
+
+```bash
+docker compose up -d       # local Postgres 16 on :5432 (optional for Phase 0)
+cp .env.example .env.local # then fill in keys you need
+npm run dev                # Next.js on :3000
+```
+
+Storage driver toggle:
+
+- `BLOB_DRIVER=fs` (default) — writes to `.spaceforge-local/blob/`. No
+  network, no Docker, no token.
+- `BLOB_DRIVER=vercel` — real Vercel Blob. Needs `BLOB_READ_WRITE_TOKEN`.
 
 ## Environment variables
 
-The photo proxy at `/api/photo` needs one env var:
+See `.env.example` for the canonical list. At minimum for the photo
+proxy:
 
 - `UNSPLASH_ACCESS_KEY` — your Unsplash app's **Access Key** (not the
-  Secret Key; the secret isn't used and should not be set).
+  Secret Key).
 
-For local dev, copy `.env.example` to `.env.local` and fill in the key.
-Vite's dev server picks it up and uses it server-side via middleware in
-`vite.config.ts`. In production, set the same var in the Vercel
-dashboard → Project → Settings → Environment Variables.
+Phase 1+ also needs `DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`,
+`CLERK_SECRET_KEY`, `CLERK_WEBHOOK_SECRET`.
 
 ## Deploy
 
-Static build hosted on Vercel. COOP/COEP headers in `vercel.json` are
-required for WebGPU in production. The `api/` folder is auto-deployed
-as Vercel Edge functions.
+Next.js on Vercel. COOP/COEP headers (required for WebGPU) are set in
+`next.config.ts`. Route handlers under `app/api/` are auto-deployed as
+Vercel Functions (Fluid Compute).

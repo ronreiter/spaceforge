@@ -1,0 +1,32 @@
+# Local dev infrastructure for Spaceforge.
+#
+# Brings up a single Postgres 16 container — matches Neon's engine version,
+# so schemas / migrations written here translate one-for-one when we point
+# at Neon in production.
+#
+# Usage:
+#   docker compose up -d     # start Postgres in the background
+#   docker compose down      # stop (data persists in the named volume)
+#   docker compose down -v   # stop AND wipe the local database
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: spaceforge-postgres
+    restart: unless-stopped
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: spaceforge
+      POSTGRES_PASSWORD: spaceforge
+      POSTGRES_DB: spaceforge
+    volumes:
+      - spaceforge-pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U spaceforge -d spaceforge']
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  spaceforge-pg-data:
