@@ -1,14 +1,8 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import dynamic from 'next/dynamic';
-
-// The editor pulls in @huggingface/transformers, Monaco, TipTap, and a
-// bunch of client-only DOM APIs. Load it without SSR so the server build
-// never touches these modules.
-const App = dynamic(() => import('../src/App'), {
-  ssr: false,
-});
-
+// Root URL lands on the dashboard for signed-in users; Clerk middleware
+// routes signed-out users to /sign-in automatically via the public-route
+// list. Dev-auth always treats you as signed in, so this always forwards.
 export default function Page() {
-  return <App />;
+  redirect('/dashboard');
 }
