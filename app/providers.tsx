@@ -6,6 +6,7 @@ import {
   localStorageColorSchemeManager,
   type MantineColorsTuple,
 } from '@mantine/core';
+import { DialogProvider } from '../src/ui/dialogs';
 
 const neon: MantineColorsTuple = [
   '#f6ffd6',
@@ -43,7 +44,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       defaultColorScheme="dark"
       colorSchemeManager={colorSchemeManager}
     >
-      {children}
+      <DialogProvider>{children}</DialogProvider>
     </MantineProvider>
   );
 }

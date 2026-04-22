@@ -29,6 +29,7 @@ import {
 } from '@tabler/icons-react';
 import type { AuthedUser } from '../../lib/auth/types';
 import type { TeamMemberRow, TeamRole } from '../../lib/sharing/service';
+import { useAlert, useConfirm } from '../../src/ui/dialogs';
 
 const MANAGEABLE_ROLES: { value: TeamRole; label: string }[] = [
   { value: 'admin', label: 'Admin' },
@@ -49,6 +50,8 @@ export function TeamView({
   const [role, setRole] = useState<TeamRole>('editor');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const confirmDialog = useConfirm();
+  const alertDialog = useAlert();
 
   const selfRole = members.find((m) => m.userId === user.id)?.role;
   const canManage = selfRole === 'owner' || selfRole === 'admin';
@@ -86,7 +89,10 @@ export function TeamView({
     });
     if (!res.ok) {
       const body = (await res.json().catch(() => null)) as { error?: string } | null;
-      alert(body?.error ?? `HTTP ${res.status}`);
+      await alertDialog({
+        title: 'Role change failed',
+        message: body?.error ?? `HTTP ${res.status}`,
+      });
       return;
     }
     setMembers((ms) =>
@@ -95,13 +101,27 @@ export function TeamView({
   }
 
   async function remove(userId: string, email: string) {
-    if (!confirm(`Remove ${email} from this team?`)) return;
+    const ok = await confirmDialog({
+      title: 'Remove from team?',
+      message: (
+        <>
+          <b>{email}</b> will lose access to every site in this team. They keep
+          any ad-hoc per-site shares.
+        </>
+      ),
+      confirmLabel: 'Remove',
+      danger: true,
+    });
+    if (!ok) return;
     const res = await fetch(`/api/teams/current/members/${userId}`, {
       method: 'DELETE',
     });
     if (!res.ok) {
       const body = (await res.json().catch(() => null)) as { error?: string } | null;
-      alert(body?.error ?? `HTTP ${res.status}`);
+      await alertDialog({
+        title: 'Remove failed',
+        message: body?.error ?? `HTTP ${res.status}`,
+      });
       return;
     }
     setMembers((ms) => ms.filter((m) => m.userId !== userId));

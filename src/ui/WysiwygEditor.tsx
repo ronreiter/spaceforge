@@ -22,6 +22,7 @@ import {
 } from '@tabler/icons-react';
 import { markdownToHtml, htmlToMarkdown } from '../lib/markdownHtml';
 import { scopeCss } from '../lib/scopeCss';
+import { usePrompt } from './dialogs';
 
 export type WysiwygEditorProps = {
   value: string;
@@ -43,6 +44,11 @@ export function WysiwygEditor({
   readOnly,
 }: WysiwygEditorProps) {
   const editor = useEditor({
+    // TipTap v3 throws an SSR warning when rendered under Next.js even
+    // though the host is dynamic(..., { ssr: false }) — it can't tell.
+    // Explicitly deferring the initial render suppresses the warning and
+    // avoids hydration-mismatch hazards.
+    immediatelyRender: false,
     editable: !readOnly,
     extensions: [
       StarterKit.configure({
@@ -135,6 +141,7 @@ const DEFAULT_CANVAS_CSS = `
 `;
 
 function Toolbar({ editor }: { editor: Editor | null }) {
+  const promptDialog = usePrompt();
   if (!editor) return null;
   const b = (cmd: () => void, active: boolean, icon: React.ReactNode, label: string) => (
     <Tooltip label={label} withArrow openDelay={400}>
@@ -149,9 +156,15 @@ function Toolbar({ editor }: { editor: Editor | null }) {
       </ActionIcon>
     </Tooltip>
   );
-  const setLink = () => {
+  const setLink = async () => {
     const prev = editor.getAttributes('link').href as string | undefined;
-    const url = prompt('Link URL', prev ?? 'https://');
+    const url = await promptDialog({
+      title: 'Link',
+      label: 'URL',
+      placeholder: 'https://example.com',
+      initial: prev ?? 'https://',
+      confirmLabel: 'Save',
+    });
     if (url === null) return;
     if (url === '') {
       editor.chain().focus().unsetLink().run();

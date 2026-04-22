@@ -32,6 +32,7 @@ import {
 import type { AuthedUser } from '../../lib/auth/types';
 import type { SiteSummary } from '../../lib/sites/service';
 import type { CollabRole, CollaboratorRow } from '../../lib/sharing/service';
+import { useAlert, useConfirm } from '../../src/ui/dialogs';
 
 export function DashboardView({
   user,
@@ -57,6 +58,9 @@ export function DashboardView({
     const shared = sites.filter((s) => s.via === 'collaborator');
     return { teamSites: team, sharedSites: shared };
   }, [sites]);
+
+  const confirmDialog = useConfirm();
+  const alertDialog = useAlert();
 
   async function createSite() {
     setError(null);
@@ -85,10 +89,27 @@ export function DashboardView({
   }
 
   async function deleteSite(id: string) {
-    if (!confirm('Delete this site? This cannot be undone.')) return;
+    const site = sites.find((s) => s.id === id);
+    const ok = await confirmDialog({
+      title: 'Move to trash?',
+      message: site ? (
+        <>
+          <b>{site.name}</b> will move to the trash. You can restore it later
+          from the Trash page.
+        </>
+      ) : (
+        'Move this site to the trash?'
+      ),
+      confirmLabel: 'Move to trash',
+      danger: true,
+    });
+    if (!ok) return;
     const res = await fetch(`/api/sites/${id}`, { method: 'DELETE' });
     if (!res.ok) {
-      alert(`Failed to delete: HTTP ${res.status}`);
+      await alertDialog({
+        title: 'Delete failed',
+        message: `HTTP ${res.status}`,
+      });
       return;
     }
     setSites((s) => s.filter((x) => x.id !== id));
@@ -316,6 +337,7 @@ function ShareSiteModal({
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<CollabRole>('editor');
   const [inviting, setInviting] = useState(false);
+  const alertDialog = useAlert();
 
   // Fetch when the modal is opened on a new site.
   useEffect(() => {
@@ -372,7 +394,10 @@ function ShareSiteModal({
       method: 'DELETE',
     });
     if (!res.ok) {
-      alert(`Failed to remove: HTTP ${res.status}`);
+      await alertDialog({
+        title: 'Remove failed',
+        message: `HTTP ${res.status}`,
+      });
       return;
     }
     setCollaborators((cs) => cs.filter((c) => c.userId !== userId));

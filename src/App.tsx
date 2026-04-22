@@ -51,6 +51,7 @@ import {
 
 import { useServerSite } from './storage/useServerSite';
 import { Center, Loader, Stack, Text } from '@mantine/core';
+import { useAlert, useConfirm } from './ui/dialogs';
 
 type StatusKind = 'loading' | 'ready' | 'error';
 
@@ -176,6 +177,9 @@ function AppInnerBody({
   // Viewer-role collaborators can browse but not mutate. The API layer
   // enforces this too (PUT/DELETE return 403); this makes the UX honest.
   const readOnly = chrome?.role === 'viewer';
+
+  const confirmDialog = useConfirm();
+  const alertDialog = useAlert();
 
   const [tab, setTab] = useState<'preview' | 'edit' | 'templates'>('preview');
 
@@ -420,7 +424,10 @@ function AppInnerBody({
       try {
         return writeFile(s, path, contents);
       } catch (e) {
-        alert(e instanceof Error ? e.message : String(e));
+        void alertDialog({
+          title: 'Could not create file',
+          message: e instanceof Error ? e.message : String(e),
+        });
         return s;
       }
     });
@@ -433,13 +440,16 @@ function AppInnerBody({
 
   const onSelectTemplate = (id: string) => setSite((s) => setTemplate(s, id));
 
-  function onStartFresh() {
-    if (
-      !confirm(
-        'This wipes the current site and chat history. Download first if you want to keep it. Continue?',
-      )
-    )
-      return;
+  async function onStartFresh() {
+    const ok = await confirmDialog({
+      title: 'Start fresh?',
+      message:
+        'This wipes the current site and chat history. Download first if you want to keep it.',
+      confirmLabel: 'Start fresh',
+      cancelLabel: 'Keep editing',
+      danger: true,
+    });
+    if (!ok) return;
     clearSite();
     const fresh = emptySite();
     fresh.model = modelId;

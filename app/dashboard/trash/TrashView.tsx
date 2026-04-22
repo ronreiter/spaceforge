@@ -25,6 +25,7 @@ import {
 } from '@tabler/icons-react';
 import type { AuthedUser } from '../../../lib/auth/types';
 import type { SiteSummary } from '../../../lib/sites/service';
+import { useAlert, useConfirm } from '../../../src/ui/dialogs';
 
 export function TrashView({
   user,
@@ -35,6 +36,8 @@ export function TrashView({
 }) {
   const [sites, setSites] = useState(initial);
   const [busy, setBusy] = useState<string | null>(null);
+  const confirmDialog = useConfirm();
+  const alertDialog = useAlert();
 
   const canManage = (s: SiteSummary) => s.role === 'owner' || s.role === 'admin';
 
@@ -43,25 +46,37 @@ export function TrashView({
     const res = await fetch(`/api/sites/${id}/restore`, { method: 'POST' });
     setBusy(null);
     if (!res.ok) {
-      alert(`Failed to restore: HTTP ${res.status}`);
+      await alertDialog({
+        title: 'Restore failed',
+        message: `HTTP ${res.status}`,
+      });
       return;
     }
     setSites((s) => s.filter((x) => x.id !== id));
   }
 
   async function purge(id: string, name: string) {
-    if (
-      !confirm(
-        `Permanently delete "${name}"? All files, versions, and share links will be removed. This cannot be undone.`,
-      )
-    )
-      return;
+    const ok = await confirmDialog({
+      title: 'Permanently delete?',
+      message: (
+        <>
+          All files, versions, and share links for <b>{name}</b> will be
+          removed. This cannot be undone.
+        </>
+      ),
+      confirmLabel: 'Delete forever',
+      danger: true,
+    });
+    if (!ok) return;
     setBusy(id);
     const res = await fetch(`/api/sites/${id}?hard=1`, { method: 'DELETE' });
     setBusy(null);
     if (!res.ok) {
       const body = (await res.json().catch(() => null)) as { error?: string } | null;
-      alert(body?.error ?? `HTTP ${res.status}`);
+      await alertDialog({
+        title: 'Delete failed',
+        message: body?.error ?? `HTTP ${res.status}`,
+      });
       return;
     }
     setSites((s) => s.filter((x) => x.id !== id));

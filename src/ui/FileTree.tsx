@@ -25,6 +25,7 @@ import {
   IconTrash,
 } from '@tabler/icons-react';
 import { triggerDownload } from '../storage/zip';
+import { useAlert, useConfirm, usePrompt } from './dialogs';
 
 export type FileTreeProps = {
   files: Record<string, string>;
@@ -84,19 +85,33 @@ export function FileTree({
 }: FileTreeProps) {
   const [rootOpen, setRootOpen] = useState(true);
   const paths = sortPaths(Object.keys(files));
+  const confirmDialog = useConfirm();
+  const alertDialog = useAlert();
+  const promptDialog = usePrompt();
 
-  function onNewFile() {
-    const name = prompt('New file name (e.g. about.md):')?.trim();
+  async function onNewFile() {
+    const raw = await promptDialog({
+      title: 'New file',
+      label: 'File name',
+      placeholder: 'about.md',
+    });
+    const name = raw?.trim();
     if (!name) return;
     if (name in files) {
-      alert('file already exists');
+      await alertDialog({
+        title: 'File already exists',
+        message: `"${name}" is already in the site. Pick a different name or delete the existing file first.`,
+      });
       return;
     }
     try {
       onFileCreate(name, '');
       onSelect(name);
     } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
+      await alertDialog({
+        title: 'Could not create file',
+        message: e instanceof Error ? e.message : String(e),
+      });
     }
   }
 
@@ -105,8 +120,18 @@ export function FileTree({
     triggerDownload(blob, path);
   }
 
-  function onDelete(path: string) {
-    if (!confirm(`Delete ${path}?`)) return;
+  async function onDelete(path: string) {
+    const ok = await confirmDialog({
+      title: 'Delete file?',
+      message: (
+        <>
+          <b>{path}</b> will be removed from this site.
+        </>
+      ),
+      confirmLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
     onFileDelete(path);
   }
 
