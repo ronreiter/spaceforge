@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { AppShell, Tabs, Box } from '@mantine/core';
-import { IconEye, IconCode, IconLayoutGrid } from '@tabler/icons-react';
+import { IconEye, IconLayoutGrid, IconEdit } from '@tabler/icons-react';
 import { BrowserGate } from './ui/BrowserGate';
 import { TopBar } from './ui/TopBar';
 import { Chat, type ChatSendState } from './ui/Chat';
 import { Preview } from './ui/Preview';
-import { Source } from './ui/Source';
 import { Templates } from './ui/Templates';
+import { EditorView } from './ui/EditorView';
 import {
   loadSite,
   saveSite,
@@ -65,7 +65,7 @@ function AppInner() {
     saveSite(site);
   }, [site]);
 
-  const [tab, setTab] = useState<'preview' | 'source' | 'templates'>('preview');
+  const [tab, setTab] = useState<'preview' | 'edit' | 'templates'>('preview');
 
   const previewFiles = useMemo(
     () => overlayFiles(site.files, site.templateId),
@@ -174,6 +174,7 @@ function AppInner() {
       }));
 
       let tokens = 0;
+      let filesTouched = 0;
       const t0 = performance.now();
       const tick = setInterval(() => {
         const sec = (performance.now() - t0) / 1000;
@@ -202,6 +203,7 @@ function AppInner() {
           fileBuffers.current[path] = (fileBuffers.current[path] ?? '') + chunk;
         },
         onFileEnd: (path) => {
+          filesTouched += 1;
           const buf = stripCodeFences(fileBuffers.current[path] ?? '');
           delete fileBuffers.current[path];
           setSite((s) => {
@@ -213,6 +215,7 @@ function AppInner() {
           });
         },
         onFileTruncated: (path) => {
+          filesTouched += 1;
           const buf = stripCodeFences(fileBuffers.current[path] ?? '');
           delete fileBuffers.current[path];
           const complete = looksComplete(path, buf);
@@ -240,6 +243,21 @@ function AppInner() {
           setBusy(false);
           clearInterval(tick);
           setTps(0);
+          // If the model produced prose but never emitted a ===FILE:=== block,
+          // the site is unchanged. Tell the user explicitly so they know to
+          // retry — small models sometimes stop at the planning step.
+          if (filesTouched === 0) {
+            setSite((s) => {
+              const h = [...s.chatHistory];
+              const last = h[h.length - 1];
+              if (last && last.role === 'assistant') {
+                const note =
+                  '\n\n⚠️ I described the change but didn\'t write any files — nothing changed. Try asking again, rephrase more directly (e.g. "update index.md to add three landscape photos"), or switch to a larger model.';
+                h[h.length - 1] = { ...last, content: last.content + note };
+              }
+              return { ...s, chatHistory: h };
+            });
+          }
         },
         onError: (err) => {
           setBusy(false);
@@ -384,7 +402,7 @@ function AppInner() {
           >
             <Tabs
               value={tab}
-              onChange={(v) => v && setTab(v as 'preview' | 'source' | 'templates')}
+              onChange={(v) => v && setTab(v as 'preview' | 'edit' | 'templates')}
               variant="default"
               style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
             >
@@ -392,8 +410,8 @@ function AppInner() {
                 <Tabs.Tab value="preview" leftSection={<IconEye size={14} />}>
                   Preview
                 </Tabs.Tab>
-                <Tabs.Tab value="source" leftSection={<IconCode size={14} />}>
-                  Source
+                <Tabs.Tab value="edit" leftSection={<IconEdit size={14} />}>
+                  Edit
                 </Tabs.Tab>
                 <Tabs.Tab value="templates" leftSection={<IconLayoutGrid size={14} />}>
                   Template
@@ -402,12 +420,13 @@ function AppInner() {
               <Tabs.Panel value="preview" style={{ flex: 1, minHeight: 0 }}>
                 <Preview files={previewFiles} />
               </Tabs.Panel>
-              <Tabs.Panel value="source" style={{ flex: 1, minHeight: 0 }}>
-                <Source
+              <Tabs.Panel value="edit" style={{ flex: 1, minHeight: 0 }}>
+                <EditorView
                   files={site.files}
+                  templateId={site.templateId}
                   onFileChange={onFileChange}
-                  onFileDelete={onFileDelete}
                   onFileCreate={onFileCreate}
+                  onFileDelete={onFileDelete}
                 />
               </Tabs.Panel>
               <Tabs.Panel value="templates" style={{ flex: 1, minHeight: 0 }}>

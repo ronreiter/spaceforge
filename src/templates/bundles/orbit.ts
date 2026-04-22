@@ -39,7 +39,7 @@ header {
   z-index: 10;
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
   gap: 1rem;
   flex-wrap: wrap;
 }

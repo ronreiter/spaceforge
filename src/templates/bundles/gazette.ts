@@ -27,9 +27,9 @@ body {
 
 header {
   text-align: center;
-  padding: 2.5rem 1rem 1rem;
+  padding: 2.5rem 1.5rem 1rem;
   border-bottom: 3px double var(--gazette-rule);
-  margin: 0 1rem 2.5rem;
+  margin: 0 0 2.5rem;
 }
 header h1, header h2, header .brand {
   font-family: var(--sf-font-heading);

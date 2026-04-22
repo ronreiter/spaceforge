@@ -3,6 +3,7 @@ import {
   renderPage,
   resolvePage,
   resolveRoute,
+  stripPicoLayoutConstraints,
   NAV_RUNTIME_MARKER,
 } from '../src/runtime/iframeRuntime';
 
@@ -90,5 +91,55 @@ describe('resolveRoute', () => {
 
   it('returns null for unknown routes', () => {
     expect(resolveRoute('missing.html', {})).toBe(null);
+  });
+
+  it('strips query strings and hashes before matching', () => {
+    const files = { 'about.md': '# about' };
+    expect(resolveRoute('about.html?v=1#top', files)).toBe('about.md');
+  });
+
+  it('resolves extensionless refs to .md', () => {
+    const files = { 'about.md': '# about' };
+    expect(resolveRoute('about', files)).toBe('about.md');
+  });
+
+  it('resolves trailing-slash refs to .md', () => {
+    const files = { 'about.md': '# about' };
+    expect(resolveRoute('about/', files)).toBe('about.md');
+  });
+
+  it('resolves folder-style refs to their index file', () => {
+    const files = { 'about/index.md': '# about' };
+    expect(resolveRoute('about/', files)).toBe('about/index.md');
+  });
+
+  it('resolves leading-slash refs by stripping the slash', () => {
+    const files = { 'about.md': '# about' };
+    expect(resolveRoute('/about.html', files)).toBe('about.md');
+  });
+});
+
+describe('stripPicoLayoutConstraints', () => {
+  it('removes the base body>header/main/footer rule', () => {
+    const css =
+      'a{color:red}body>footer,body>header,body>main{width:100%;margin-right:auto;margin-left:auto;padding:1rem 2rem}p{margin:0}';
+    const out = stripPicoLayoutConstraints(css);
+    expect(out).not.toMatch(/body>header/);
+    expect(out).toContain('a{color:red}');
+    expect(out).toContain('p{margin:0}');
+  });
+
+  it('removes the @media-wrapped max-width constraints', () => {
+    const css =
+      '@media (min-width:1280px){body>footer,body>header,body>main{max-width:1200px}}';
+    expect(stripPicoLayoutConstraints(css)).toBe('');
+  });
+
+  it('leaves unrelated @media rules intact', () => {
+    const css =
+      '@media (min-width:768px){main{padding:2rem}}@media (min-width:576px){body>footer,body>header,body>main{max-width:510px;padding-right:0;padding-left:0}}';
+    const out = stripPicoLayoutConstraints(css);
+    expect(out).toContain('@media (min-width:768px){main{padding:2rem}}');
+    expect(out).not.toMatch(/body>header/);
   });
 });

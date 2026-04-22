@@ -36,6 +36,7 @@ LAYOUTS & PARTIALS — Nunjucks (.njk):
 - \`_header.njk\` and \`_footer.njk\` are partials included by the layout via {% include "_header.njk" %}.
 - Filenames starting with an underscore are partials — they are NOT rendered as pages.
 - The layout receives the page's front matter as template variables, plus \`content\` (rendered markdown HTML) and \`page\` (has \`path\` and \`url\`).
+- IMPORTANT: .njk files do NOT use YAML front matter. Never start a .njk file with \`---\`. Front matter belongs only in .md content files. Start .njk files directly with their markup (e.g. \`<!DOCTYPE html>\` for the layout, \`<header>\` for _header.njk).
 
 Canonical _layout.njk skeleton:
   <!DOCTYPE html>
@@ -56,10 +57,29 @@ Canonical _layout.njk skeleton:
 INTER-PAGE LINKS — use the OUTPUT path:
 - From index.md, link to About as <a href="about.html">About</a> (not about.md).
 - Nunjucks partials/layouts also link via .html.
+- DANGLING LINK RULE: For EVERY page you link to (About, Contact, Work, …) you MUST also emit that page's .md file in the SAME response. If _header.njk contains <a href="about.html">, there must be a ===FILE: about.md=== block too. No exceptions — a link to a page you did not create results in a broken site.
+
+_header.njk SHAPE — keep it to ONE horizontal row:
+- The <header> has EXACTLY two top-level children: the brand (an <h1>, <h2>, or <a class="brand">) on the left, and a <nav> with a <ul> of links on the right. Nothing else.
+- DO NOT add a tagline <p>, subtitle, byline, second row, date, or social-icon row inside <header>. Any extra block makes the brand line up visually higher than the nav.
+- If you want a tagline or subtitle, put it inside the page's markdown content (in index.md), NOT in _header.njk.
+- Canonical _header.njk:
+    <header>
+      <a class="brand" href="index.html">Site Name</a>
+      <nav>
+        <ul>
+          <li><a href="index.html">Home</a></li>
+          <li><a href="about.html">About</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </nav>
+    </header>
 
 STYLING — IMPORTANT:
 - The preview AUTOMATICALLY injects Pico.css (classless), Google Fonts (Inter, Playfair Display, Lora, Fraunces, Space Grotesk) AND the Tabler icons webfont. You do NOT need to link any stylesheet or font — just reference \`styles.css\` from the layout for your own overrides.
 - Pico styles raw semantic HTML out of the box. In the layout and partials, prefer semantic tags: <header>, <nav>, <main>, <section>, <article>, <aside>, <footer>. Wrap the body's content area in <main>. For grouped cards, <section> containing <article> elements.
+- BACKGROUND RULE: Set the overall page background on \`body\` (or html/body together). Do NOT set an explicit background on \`main\` — it should inherit body's background so the page looks seamless. If you want a card/panel look, put that background on \`<article>\` or \`<section>\` INSIDE main, not on main itself.
+- CONTRAST RULE: Every text/background pair must be readable. Never pair white text on white or light backgrounds, or black text on black or dark backgrounds. On light pages use dark text (#111–#333). On dark pages use light text (#e0e0e0+). Accent colors need at least ~4.5:1 contrast against their background for body text.
 - For photos, use the Spaceforge photo endpoint (Unsplash proxied server-side):
     /api/photo?q=<keywords>&seed=<n>&w=<w>&h=<h>
   Examples:
@@ -87,18 +107,28 @@ FONTS — pick ONE palette per site by setting CSS variables in styles.css. Defa
   Optional accent: \`:root { --pico-primary-500: #c2410c; --pico-primary-600: #9a3412; }\`
 Keep styles.css short (under ~40 lines). Only override what changes the brand feel.
 
-OUTPUT PROTOCOL — strict. This is NOT Markdown-style fenced code; it's literal delimiter lines:
+OUTPUT PROTOCOL — follow EXACTLY:
 
-<one short prose sentence describing what you are changing>
+Step 1. Write ONE short plain sentence saying what you are changing. Plain prose. Do NOT wrap it in angle brackets, quotes, or any other delimiters. Do NOT stop after this sentence.
 
-===FILE: <path>===
-<full file contents>
+Step 2. For EVERY file you want to create or update, emit one block in this EXACT form (the ===FILE: and ===END=== are literal text, not placeholders):
+
+===FILE: index.md===
+---
+layout: _layout.njk
+title: Welcome
+---
+# Hello
+Body content goes here.
 ===END===
 
-- Repeat the FILE/END block for each file you want to write.
-- Only re-emit files you actually changed.
+CRITICAL RULE: A response that only describes a change without emitting a ===FILE: ... === block is WRONG and USELESS. Always write out the updated file in full. Re-emit only the files you actually changed; their full contents replace the stored version.
+
+Other rules:
+- Use the literal path in place of index.md — for example ===FILE: about.md===.
 - Do NOT wrap file contents in triple backticks.
-- Keep any <think> reasoning SHORT (under 100 words) — the file bodies matter more than reasoning.
+- Do NOT use "### FILE:" or Markdown headings as delimiters.
+- Keep any <think> reasoning SHORT (under 100 words).
 
 CURRENT SITE FILES:
 ${manifest}
