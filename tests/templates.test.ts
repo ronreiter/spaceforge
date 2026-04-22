@@ -35,12 +35,21 @@ describe('overlayFiles', () => {
     expect(out).toEqual(siteFiles);
   });
 
+  it('each bundled template owns only styles.css', () => {
+    const bundled = TEMPLATES.filter((t) => t.id !== CUSTOM_TEMPLATE_ID);
+    expect(bundled.length).toBeGreaterThan(0);
+    for (const tpl of bundled) {
+      expect(Object.keys(tpl.files)).toEqual(['styles.css']);
+      expect(tpl.files['styles.css'].length).toBeGreaterThan(200);
+    }
+  });
+
   it('each bundled template renders a sample page without Nunjucks errors', () => {
     const sampleMd = `---\nlayout: _layout.njk\ntitle: Hello\ndescription: sample page\n---\n# Hi there\n\nSome paragraph.\n`;
+    const stubLayout = `<!DOCTYPE html><html><head><title>{{ title }}</title><link rel="stylesheet" href="styles.css"></head><body><main>{{ content | safe }}</main></body></html>`;
     const templates = TEMPLATES.filter((t) => t.id !== CUSTOM_TEMPLATE_ID);
-    expect(templates.length).toBeGreaterThan(0);
     for (const tpl of templates) {
-      const files = { 'index.md': sampleMd, ...tpl.files };
+      const files = { 'index.md': sampleMd, '_layout.njk': stubLayout, ...tpl.files };
       const rendered = renderMarkdownPage('index.md', files);
       expect(rendered, `template ${tpl.id} produced empty output`).toBeTruthy();
       expect(rendered).toContain('Hi there');

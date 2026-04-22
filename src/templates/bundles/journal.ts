@@ -1,126 +1,104 @@
 import type { TemplateBundle } from '../registry';
 
-// "Journal" — minimalist single-column blog. Inter for everything. Generous
-// line height. Neutral gray palette with a subtle black accent. Inspired by
-// bearblog.dev and Herman Martinus's personal-site style.
-const layout = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ title or "Journal" }}</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  {% include "_header.njk" %}
-  <main>
-    {% if title %}<h1 class="page-title">{{ title }}</h1>{% endif %}
-    {% if description %}<p class="page-lede">{{ description }}</p>{% endif %}
-    <article class="post">
-      {{ content | safe }}
-    </article>
-  </main>
-  {% include "_footer.njk" %}
-</body>
-</html>
-`;
-
-const header = `<header class="site-header">
-  <nav>
-    <a class="brand" href="index.html">Journal</a>
-    <div class="links">
-      <a href="index.html">Home</a>
-      <a href="about.html">About</a>
-    </div>
-  </nav>
-</header>
-`;
-
-const footer = `<footer class="site-footer">
-  <p>&copy; {{ "now" | date("%Y") }} Journal &middot; Built with Spaceforge.</p>
-</footer>
-`;
-
+// "Journal" — minimalist single-column blog. Inter everywhere, generous
+// line height, neutral grey palette, understated links. Works on ANY
+// `_layout.njk` the model produces — we target semantic elements only.
 const styles = `:root {
   --sf-font-heading: 'Inter', system-ui, sans-serif;
   --sf-font-body: 'Inter', system-ui, sans-serif;
   --pico-primary-500: #111111;
   --pico-primary-600: #000000;
-  --pico-primary-focus: rgba(0,0,0,0.1);
+  --pico-primary-focus: rgba(0, 0, 0, 0.1);
+  --pico-color: #1a1a1a;
+  --pico-background-color: #ffffff;
 }
 
+html, body { background: #ffffff; }
 body {
   max-width: 680px;
   margin: 0 auto;
   padding: 2rem 1.25rem 4rem;
-  line-height: 1.7;
   color: #1a1a1a;
+  line-height: 1.75;
   font-size: 16px;
+  font-family: var(--sf-font-body);
 }
 
-.site-header {
-  border-bottom: 1px solid #eee;
+header {
   margin-bottom: 3rem;
   padding-bottom: 1rem;
+  border-bottom: 1px solid #eaeaea;
 }
-.site-header nav {
+header nav, header ul {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  gap: 1.25rem;
+  flex-wrap: wrap;
 }
-.site-header .brand {
-  font-weight: 600;
-  font-size: 1.1rem;
-  text-decoration: none;
-  color: #1a1a1a;
-}
-.site-header .links { display: flex; gap: 1.25rem; }
-.site-header .links a {
-  text-decoration: none;
+header a {
   color: #555;
+  text-decoration: none;
   font-size: 0.9rem;
 }
-.site-header .links a:hover { color: #000; }
+header a:hover { color: #000; }
+header h1, header h2, header .brand {
+  font-weight: 600;
+  font-size: 1.1rem;
+  letter-spacing: -0.01em;
+  color: #1a1a1a;
+  margin: 0;
+}
 
-main { padding: 0; }
-.page-title { font-weight: 700; font-size: 2rem; margin: 0 0 0.25rem; letter-spacing: -0.01em; }
-.page-lede  { color: #777; margin: 0 0 2rem; font-size: 1.05rem; }
+main, article, section {
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+  padding: 0;
+}
 
-.post h1, .post h2, .post h3 { letter-spacing: -0.01em; }
-.post h2 { margin-top: 2.5rem; font-size: 1.4rem; }
-.post h3 { margin-top: 1.75rem; font-size: 1.15rem; }
-.post p { margin: 0 0 1.1rem; }
-.post a { color: #1a1a1a; text-decoration: underline; text-decoration-color: #bbb; }
-.post a:hover { text-decoration-color: #1a1a1a; }
-.post ul, .post ol { padding-left: 1.25rem; }
-.post img { max-width: 100%; border-radius: 4px; margin: 1rem 0; }
-.post blockquote {
+main h1 { font-weight: 700; font-size: 2rem; margin: 0 0 0.5rem; letter-spacing: -0.01em; }
+main h2 { margin-top: 2.5rem; font-size: 1.4rem; font-weight: 600; letter-spacing: -0.005em; }
+main h3 { margin-top: 1.75rem; font-size: 1.15rem; font-weight: 600; }
+main p  { margin: 0 0 1.1rem; }
+main a  { color: #1a1a1a; text-decoration: underline; text-decoration-color: #bbb; text-underline-offset: 3px; }
+main a:hover { text-decoration-color: #1a1a1a; }
+main ul, main ol { padding-left: 1.25rem; }
+main img { max-width: 100%; border-radius: 4px; margin: 1rem 0; }
+main blockquote {
   border-left: 3px solid #1a1a1a;
   padding: 0.1rem 0 0.1rem 1rem;
   margin: 1.25rem 0;
   color: #555;
   font-style: italic;
 }
+main code {
+  background: #f4f4f4;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
 
-.site-footer {
+footer {
   margin-top: 4rem;
   padding-top: 1rem;
-  border-top: 1px solid #eee;
+  border-top: 1px solid #eaeaea;
   color: #888;
   font-size: 0.85rem;
   text-align: center;
 }
+footer a { color: #555; }
 `;
 
 export const journalTemplate: TemplateBundle = {
   id: 'journal',
   name: 'Journal',
   description:
-    'Minimalist single-column blog. Inter typography, neutral greys, ample whitespace. Great for writing, personal sites, and slow-reading content.',
+    'Minimalist single-column blog. Inter typography, neutral greys, ample whitespace. Good for writing, personal sites, and slow-reading content.',
   files: {
-    '_layout.njk': layout,
-    '_header.njk': header,
-    '_footer.njk': footer,
     'styles.css': styles,
   },
 };

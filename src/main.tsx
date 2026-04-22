@@ -27,6 +27,11 @@ const theme = createTheme({
   primaryColor: 'neon',
   primaryShade: { light: 5, dark: 3 },
   colors: { neon },
+  // Neon lime is bright enough that white text on filled buttons is
+  // unreadable. autoContrast picks a dark label when the background is
+  // light and a light label when the background is dark, across every
+  // Mantine component that uses the primary color (Button, Badge, etc).
+  autoContrast: true,
   fontFamily:
     'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   fontFamilyMonospace:
