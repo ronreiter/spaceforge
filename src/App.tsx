@@ -49,21 +49,100 @@ import {
   fallbackEntry,
 } from './model/registry';
 
+import { useServerSite } from './storage/useServerSite';
+import { Center, Loader, Stack, Text } from '@mantine/core';
+
 type StatusKind = 'loading' | 'ready' | 'error';
 
-export default function App() {
+export type AppProps = {
+  // When provided, the editor loads/saves through /api/sites/:id/files.
+  // When absent, falls back to the single-browser localStorage store
+  // (used for tests and anywhere the editor runs without a site route).
+  siteId?: string;
+};
+
+export default function App(props: AppProps = {}) {
   return (
     <BrowserGate>
-      <AppInner />
+      <AppInner siteId={props.siteId} />
     </BrowserGate>
   );
 }
 
-function AppInner() {
+// Legacy single-browser store (localStorage-backed). Used when the
+// editor is instantiated without a siteId — kept so the old tests and
+// any embed-without-routing paths still work.
+function useLocalSite(): [SiteState, React.Dispatch<React.SetStateAction<SiteState>>] {
   const [site, setSite] = useState<SiteState>(() => loadSite());
   useEffect(() => {
     saveSite(site);
   }, [site]);
+  return [site, setSite];
+}
+
+function AppInner({ siteId }: { siteId?: string }) {
+  if (siteId) {
+    return <AppInnerServerSite siteId={siteId} />;
+  }
+  return <AppInnerLocalSite />;
+}
+
+function AppInnerServerSite({ siteId }: { siteId: string }) {
+  const { status, site, setSite, error, saving, lastSavedAt } =
+    useServerSite(siteId);
+  if (status === 'loading' || !site) {
+    return (
+      <Center h="100vh">
+        <Stack align="center" gap="xs">
+          <Loader size="sm" />
+          <Text c="dimmed" size="sm">
+            Loading site…
+          </Text>
+        </Stack>
+      </Center>
+    );
+  }
+  if (status === 'error') {
+    return (
+      <Center h="100vh" p="xl">
+        <Stack align="center" gap="xs">
+          <Text c="red" size="sm">
+            Failed to load site: {error}
+          </Text>
+        </Stack>
+      </Center>
+    );
+  }
+  return (
+    <AppInnerBody
+      site={site}
+      setSite={setSite}
+      saving={saving}
+      lastSavedAt={lastSavedAt}
+    />
+  );
+}
+
+function AppInnerLocalSite() {
+  const [site, setSite] = useLocalSite();
+  return <AppInnerBody site={site} setSite={setSite} saving={false} lastSavedAt={null} />;
+}
+
+function AppInnerBody({
+  site,
+  setSite,
+  saving,
+  lastSavedAt,
+}: {
+  site: SiteState;
+  setSite: (updater: SiteState | ((s: SiteState) => SiteState)) => void;
+  saving: boolean;
+  lastSavedAt: number | null;
+}) {
+  // Surface save state to the console for now — the TopBar gains a
+  // visible "saved Nm ago" indicator in a follow-up.
+  void saving;
+  void lastSavedAt;
 
   const [tab, setTab] = useState<'preview' | 'edit' | 'templates'>('preview');
 
