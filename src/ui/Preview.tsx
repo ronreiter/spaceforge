@@ -47,35 +47,38 @@ export function Preview({ files }: PreviewProps) {
     [cursor],
   );
 
-  useEffect(() => {
-    if (currentPath && !(currentPath in files) && hasIndex) {
-      const entry = entryPath(files);
-      if (entry) {
-        setHistory([entry]);
-        setCursor(0);
-      }
-    }
-  }, [files, currentPath, hasIndex]);
-
+  // Render the current history entry. If the entry doesn't correspond to any
+  // known file (e.g. the user clicked a dangling link), show an inline 404 —
+  // keep the entry in history so Back still works and the address bar shows
+  // the missing path, not the previous good one.
   useEffect(() => {
     if (!iframeRef.current) return;
-    if (!(currentPath in files)) return;
-    let html: string;
-    try {
-      html = resolvePage(currentPath, files);
-    } catch (err) {
-      html = `<pre style="padding:1rem;color:#b00;font-family:monospace;white-space:pre-wrap">Template error in ${currentPath}:\n\n${
-        err instanceof Error ? err.message : String(err)
-      }</pre>`;
+    if (currentPath in files) {
+      let html: string;
+      try {
+        html = resolvePage(currentPath, files);
+      } catch (err) {
+        html = `<pre style="padding:1rem;color:#b00;font-family:monospace;white-space:pre-wrap">Template error in ${currentPath}:\n\n${
+          err instanceof Error ? err.message : String(err)
+        }</pre>`;
+      }
+      iframeRef.current.srcdoc = renderPage(html, files);
+      return;
     }
-    iframeRef.current.srcdoc = renderPage(html, files);
+    const known = Object.keys(files).sort().slice(0, 20).join('\n');
+    const display = outputPath(currentPath);
+    iframeRef.current.srcdoc = `<pre style="padding:1.5rem;font-family:ui-monospace,monospace;color:#333;white-space:pre-wrap;line-height:1.6">404 — no file matches <b>${display}</b>\n\nAsk the assistant to create this page, or fix the link in the source.\n\nFiles currently in the site:\n${known}</pre>`;
   }, [currentPath, files]);
 
   useEffect(() => {
     function onMessage(e: MessageEvent) {
       if (!e.data || e.data.type !== 'spaceforge:nav') return;
-      const resolved = resolveRoute(String(e.data.href), files);
-      if (resolved) navigate(resolved);
+      const href = String(e.data.href);
+      const resolved = resolveRoute(href, files);
+      // Navigate either way — if the link is dangling, we push the raw href
+      // into history so the URL bar reflects the click, Back works, and the
+      // render effect shows the inline 404.
+      navigate(resolved ?? href);
     }
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);

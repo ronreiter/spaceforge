@@ -2,20 +2,46 @@ import nunjucks from 'nunjucks';
 
 // Small models frequently mix up Liquid-style filter syntax (`{{ x | filter:
 // "arg" }}`) with Nunjucks's native parenthesised form (`{{ x | filter("arg")
-// }}`). Nunjucks' parser hard-errors on the colon form. We normalize it on
-// the way into the loader so generated templates that made that mistake still
-// render. The rewrite only triggers inside `{{ … }}` so block tags aren't
-// touched.
+// }}`). Nunjucks' parser hard-errors on the colon form. We also see method-
+// call syntax imported from JS / moment.js (`| date.format("%Y")`), which
+// Nunjucks reads as a filter literally named "date.format" and complains
+// about. Both rewrites run on the way into the loader so generated
+// templates that made those mistakes still render. Rewrites only trigger
+// inside `{{ … }}` so block tags aren't touched.
 const EXPR_RE = /\{\{([\s\S]*?)\}\}/g;
 const FILTER_WITH_COLON_RE = /\|\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*([^|}]+?)(?=\s*(\||\}\}|$))/g;
+const FILTER_WITH_METHOD_RE = /\|\s*([a-zA-Z_][a-zA-Z0-9_]*)\.([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g;
 
 export function normalizeLiquidFilters(src: string): string {
   return src.replace(EXPR_RE, (_, inner: string) => {
-    const rewritten = inner.replace(FILTER_WITH_COLON_RE, (_m, name: string, args: string) => {
+    let rewritten = inner.replace(FILTER_WITH_COLON_RE, (_m, name: string, args: string) => {
       return `| ${name}(${args.trim()})`;
     });
+    // `| date.format(...)` → `| date(...)`. Nunjucks filter names are single
+    // identifiers; a `.method` chain must be discarded for the call to parse.
+    rewritten = rewritten.replace(FILTER_WITH_METHOD_RE, (_m, name: string) => `| ${name}(`);
     return `{{${rewritten}}}`;
   });
+}
+
+// Small models sometimes prepend YAML-style front-matter fences to .njk
+// files (mixing up the .md convention). Nunjucks treats those lines as
+// plain text, so they appear literally at the top of the rendered page.
+// Strip a leading `---\n...---\n` block, or a lone leading `---\n` line,
+// from template sources before they reach the parser.
+function stripLeadingFrontMatter(src: string): string {
+  if (!src.startsWith('---')) return src;
+  const lines = src.split(/\r?\n/);
+  if (lines[0].trim() !== '---') return src;
+  // Look for a matching closing fence within the first ~20 lines.
+  for (let i = 1; i < Math.min(lines.length, 40); i++) {
+    if (lines[i].trim() === '---') {
+      return lines.slice(i + 1).join('\n');
+    }
+  }
+  // No closing fence — model probably just stuck a lone `---\n` at the top.
+  // Drop only that first line.
+  return lines.slice(1).join('\n');
 }
 
 // Loader that reads template sources from the in-memory file map. Works for
@@ -30,7 +56,8 @@ class MemoryLoader extends nunjucks.Loader {
   getSource(name: string): nunjucks.LoaderSource | null {
     const content = this.files[name];
     if (content === undefined) return null;
-    return { src: normalizeLiquidFilters(content), path: name, noCache: true };
+    const cleaned = stripLeadingFrontMatter(content);
+    return { src: normalizeLiquidFilters(cleaned), path: name, noCache: true };
   }
 }
 
@@ -72,6 +99,13 @@ export function createEnv(files: Record<string, string>): nunjucks.Environment {
     lstripBlocks: true,
   });
   env.addFilter('date', dateFilter);
+  // Aliases for common date-formatting filter names the model reaches for.
+  // All route through the same strftime-subset formatter so the user sees
+  // something sensible regardless of which name the model picked.
+  env.addFilter('strftime', dateFilter);
+  env.addFilter('formatDate', dateFilter);
+  env.addFilter('format_date', dateFilter);
+  env.addFilter('dateFormat', dateFilter);
   return env;
 }
 

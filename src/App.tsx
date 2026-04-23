@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { AppShell, Tabs, Box } from '@mantine/core';
-import { IconEye, IconCode, IconLayoutGrid } from '@tabler/icons-react';
+import { IconEye, IconLayoutGrid, IconEdit } from '@tabler/icons-react';
 import { BrowserGate } from './ui/BrowserGate';
 import { TopBar } from './ui/TopBar';
 import { Chat, type ChatSendState } from './ui/Chat';
 import { Preview } from './ui/Preview';
-import { Source } from './ui/Source';
 import { Templates } from './ui/Templates';
+import { EditorView } from './ui/EditorView';
 import {
   loadSite,
   saveSite,
@@ -49,23 +49,134 @@ import {
   fallbackEntry,
 } from './model/registry';
 
+import { useServerSite } from './storage/useServerSite';
+import { Center, Loader, Stack, Text } from '@mantine/core';
+import { useAlert, useConfirm } from './ui/dialogs';
+
 type StatusKind = 'loading' | 'ready' | 'error';
 
-export default function App() {
+export type SiteChrome = {
+  // Multi-tenant site context surfaced in the TopBar. None of these are
+  // required for the editor to work; they just let the TopBar show the
+  // back-to-dashboard link, site name, publish controls, etc.
+  siteId?: string;
+  siteName?: string;
+  siteSlug?: string;
+  role?: 'owner' | 'admin' | 'editor' | 'viewer';
+  publishedAt?: string | null;
+  publishedVersionId?: string | null;
+  dashboardHref?: string;
+  publishing?: boolean;
+  onPublish?: () => void;
+  onUnpublish?: () => void;
+  // Called after a rollback so the host can refresh publishedAt +
+  // publishedVersionId without a page reload.
+  onVersionChanged?: (publishedAt: string, versionId: string) => void;
+};
+
+export type AppProps = {
+  // When provided, the editor loads/saves through /api/sites/:id/files.
+  // When absent, falls back to the single-browser localStorage store
+  // (used for tests and anywhere the editor runs without a site route).
+  siteId?: string;
+  chrome?: SiteChrome;
+};
+
+export default function App(props: AppProps = {}) {
   return (
     <BrowserGate>
-      <AppInner />
+      <AppInner siteId={props.siteId} chrome={props.chrome} />
     </BrowserGate>
   );
 }
 
-function AppInner() {
+// Legacy single-browser store (localStorage-backed). Used when the
+// editor is instantiated without a siteId — kept so the old tests and
+// any embed-without-routing paths still work.
+function useLocalSite(): [SiteState, React.Dispatch<React.SetStateAction<SiteState>>] {
   const [site, setSite] = useState<SiteState>(() => loadSite());
   useEffect(() => {
     saveSite(site);
   }, [site]);
+  return [site, setSite];
+}
 
-  const [tab, setTab] = useState<'preview' | 'source' | 'templates'>('preview');
+function AppInner({ siteId, chrome }: { siteId?: string; chrome?: SiteChrome }) {
+  if (siteId) {
+    return <AppInnerServerSite siteId={siteId} chrome={chrome} />;
+  }
+  return <AppInnerLocalSite />;
+}
+
+function AppInnerServerSite({
+  siteId,
+  chrome,
+}: {
+  siteId: string;
+  chrome?: SiteChrome;
+}) {
+  const { status, site, setSite, error, saving, lastSavedAt } =
+    useServerSite(siteId);
+  if (status === 'loading' || !site) {
+    return (
+      <Center h="100vh">
+        <Stack align="center" gap="xs">
+          <Loader size="sm" />
+          <Text c="dimmed" size="sm">
+            Loading site…
+          </Text>
+        </Stack>
+      </Center>
+    );
+  }
+  if (status === 'error') {
+    return (
+      <Center h="100vh" p="xl">
+        <Stack align="center" gap="xs">
+          <Text c="red" size="sm">
+            Failed to load site: {error}
+          </Text>
+        </Stack>
+      </Center>
+    );
+  }
+  return (
+    <AppInnerBody
+      site={site}
+      setSite={setSite}
+      saving={saving}
+      lastSavedAt={lastSavedAt}
+      chrome={chrome}
+    />
+  );
+}
+
+function AppInnerLocalSite() {
+  const [site, setSite] = useLocalSite();
+  return <AppInnerBody site={site} setSite={setSite} saving={false} lastSavedAt={null} />;
+}
+
+function AppInnerBody({
+  site,
+  setSite,
+  saving,
+  lastSavedAt,
+  chrome,
+}: {
+  site: SiteState;
+  setSite: (updater: SiteState | ((s: SiteState) => SiteState)) => void;
+  saving: boolean;
+  lastSavedAt: number | null;
+  chrome?: SiteChrome;
+}) {
+  // Viewer-role collaborators can browse but not mutate. The API layer
+  // enforces this too (PUT/DELETE return 403); this makes the UX honest.
+  const readOnly = chrome?.role === 'viewer';
+
+  const confirmDialog = useConfirm();
+  const alertDialog = useAlert();
+
+  const [tab, setTab] = useState<'preview' | 'edit' | 'templates'>('preview');
 
   const previewFiles = useMemo(
     () => overlayFiles(site.files, site.templateId),
@@ -174,6 +285,7 @@ function AppInner() {
       }));
 
       let tokens = 0;
+      let filesTouched = 0;
       const t0 = performance.now();
       const tick = setInterval(() => {
         const sec = (performance.now() - t0) / 1000;
@@ -202,6 +314,7 @@ function AppInner() {
           fileBuffers.current[path] = (fileBuffers.current[path] ?? '') + chunk;
         },
         onFileEnd: (path) => {
+          filesTouched += 1;
           const buf = stripCodeFences(fileBuffers.current[path] ?? '');
           delete fileBuffers.current[path];
           setSite((s) => {
@@ -213,6 +326,7 @@ function AppInner() {
           });
         },
         onFileTruncated: (path) => {
+          filesTouched += 1;
           const buf = stripCodeFences(fileBuffers.current[path] ?? '');
           delete fileBuffers.current[path];
           const complete = looksComplete(path, buf);
@@ -240,6 +354,21 @@ function AppInner() {
           setBusy(false);
           clearInterval(tick);
           setTps(0);
+          // If the model produced prose but never emitted a ===FILE:=== block,
+          // the site is unchanged. Tell the user explicitly so they know to
+          // retry — small models sometimes stop at the planning step.
+          if (filesTouched === 0) {
+            setSite((s) => {
+              const h = [...s.chatHistory];
+              const last = h[h.length - 1];
+              if (last && last.role === 'assistant') {
+                const note =
+                  '\n\n⚠️ I described the change but didn\'t write any files — nothing changed. Try asking again, rephrase more directly (e.g. "update index.md to add three landscape photos"), or switch to a larger model.';
+                h[h.length - 1] = { ...last, content: last.content + note };
+              }
+              return { ...s, chatHistory: h };
+            });
+          }
         },
         onError: (err) => {
           setBusy(false);
@@ -290,7 +419,10 @@ function AppInner() {
       try {
         return writeFile(s, path, contents);
       } catch (e) {
-        alert(e instanceof Error ? e.message : String(e));
+        void alertDialog({
+          title: 'Could not create file',
+          message: e instanceof Error ? e.message : String(e),
+        });
         return s;
       }
     });
@@ -303,13 +435,16 @@ function AppInner() {
 
   const onSelectTemplate = (id: string) => setSite((s) => setTemplate(s, id));
 
-  function onStartFresh() {
-    if (
-      !confirm(
-        'This wipes the current site and chat history. Download first if you want to keep it. Continue?',
-      )
-    )
-      return;
+  async function onStartFresh() {
+    const ok = await confirmDialog({
+      title: 'Start fresh?',
+      message:
+        'This wipes the current site and chat history. Download first if you want to keep it.',
+      confirmLabel: 'Start fresh',
+      cancelLabel: 'Keep editing',
+      danger: true,
+    });
+    if (!ok) return;
     clearSite();
     const fresh = emptySite();
     fresh.model = modelId;
@@ -348,6 +483,19 @@ function AppInner() {
           progressPct={progressPct}
           onDownloadZip={onDownloadZip}
           onStartFresh={onStartFresh}
+          dashboardHref={chrome?.dashboardHref}
+          siteId={chrome?.siteId}
+          siteName={chrome?.siteName}
+          siteSlug={chrome?.siteSlug}
+          role={chrome?.role}
+          publishedAt={chrome?.publishedAt}
+          publishedVersionId={chrome?.publishedVersionId}
+          publishing={chrome?.publishing}
+          onPublish={chrome?.onPublish}
+          onUnpublish={chrome?.onUnpublish}
+          onVersionChanged={chrome?.onVersionChanged}
+          saving={saving}
+          lastSavedAt={lastSavedAt}
         />
       </AppShell.Header>
 
@@ -371,6 +519,7 @@ function AppInner() {
               queuedPrompt={queuedPrompt}
               onSend={onSend}
               onClearQueue={() => setQueuedPrompt(null)}
+              readOnly={readOnly}
             />
           </Box>
           <Box
@@ -384,7 +533,7 @@ function AppInner() {
           >
             <Tabs
               value={tab}
-              onChange={(v) => v && setTab(v as 'preview' | 'source' | 'templates')}
+              onChange={(v) => v && setTab(v as 'preview' | 'edit' | 'templates')}
               variant="default"
               style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
             >
@@ -392,8 +541,8 @@ function AppInner() {
                 <Tabs.Tab value="preview" leftSection={<IconEye size={14} />}>
                   Preview
                 </Tabs.Tab>
-                <Tabs.Tab value="source" leftSection={<IconCode size={14} />}>
-                  Source
+                <Tabs.Tab value="edit" leftSection={<IconEdit size={14} />}>
+                  Edit
                 </Tabs.Tab>
                 <Tabs.Tab value="templates" leftSection={<IconLayoutGrid size={14} />}>
                   Template
@@ -402,16 +551,22 @@ function AppInner() {
               <Tabs.Panel value="preview" style={{ flex: 1, minHeight: 0 }}>
                 <Preview files={previewFiles} />
               </Tabs.Panel>
-              <Tabs.Panel value="source" style={{ flex: 1, minHeight: 0 }}>
-                <Source
+              <Tabs.Panel value="edit" style={{ flex: 1, minHeight: 0 }}>
+                <EditorView
                   files={site.files}
+                  templateId={site.templateId}
                   onFileChange={onFileChange}
-                  onFileDelete={onFileDelete}
                   onFileCreate={onFileCreate}
+                  onFileDelete={onFileDelete}
+                  readOnly={readOnly}
                 />
               </Tabs.Panel>
               <Tabs.Panel value="templates" style={{ flex: 1, minHeight: 0 }}>
-                <Templates templateId={site.templateId} onSelect={onSelectTemplate} />
+                <Templates
+                  templateId={site.templateId}
+                  onSelect={onSelectTemplate}
+                  readOnly={readOnly}
+                />
               </Tabs.Panel>
             </Tabs>
           </Box>

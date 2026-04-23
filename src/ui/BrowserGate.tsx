@@ -10,6 +10,24 @@ export function BrowserGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     (async () => {
+      // Test-mode bypass: Playwright headless chromium-headless-shell
+      // doesn't ship with WebGPU, so automated tests can't render the
+      // editor without this. Set `?skip-gate=1` on the URL or
+      // `window.__SPACEFORGE_SKIP_GATE = true` before navigation. Not
+      // surfaced anywhere else — real users still hit the full check.
+      try {
+        if (typeof window !== 'undefined') {
+          const qp = new URL(window.location.href).searchParams.get('skip-gate');
+          const globalFlag = (window as unknown as { __SPACEFORGE_SKIP_GATE?: boolean })
+            .__SPACEFORGE_SKIP_GATE;
+          if (qp === '1' || globalFlag) {
+            setState('ok');
+            return;
+          }
+        }
+      } catch {
+        /* fall through to real check */
+      }
       if (!('gpu' in navigator)) {
         setState('no-webgpu');
         return;

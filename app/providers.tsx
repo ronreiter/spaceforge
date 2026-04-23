@@ -1,15 +1,13 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
+'use client';
+
 import {
   MantineProvider,
   createTheme,
   localStorageColorSchemeManager,
   type MantineColorsTuple,
 } from '@mantine/core';
-import '@mantine/core/styles.css';
-import App from './App';
+import { DialogProvider } from '../src/ui/dialogs';
 
-// Neon lime — very bright, used for primary accents.
 const neon: MantineColorsTuple = [
   '#f6ffd6',
   '#ecff9e',
@@ -27,10 +25,6 @@ const theme = createTheme({
   primaryColor: 'neon',
   primaryShade: { light: 5, dark: 3 },
   colors: { neon },
-  // Neon lime is bright enough that white text on filled buttons is
-  // unreadable. autoContrast picks a dark label when the background is
-  // light and a light label when the background is dark, across every
-  // Mantine component that uses the primary color (Button, Badge, etc).
   autoContrast: true,
   fontFamily:
     'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
@@ -43,14 +37,14 @@ const colorSchemeManager = localStorageColorSchemeManager({
   key: 'spaceforge:color-scheme',
 });
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
     <MantineProvider
       theme={theme}
       defaultColorScheme="dark"
       colorSchemeManager={colorSchemeManager}
     >
-      <App />
+      <DialogProvider>{children}</DialogProvider>
     </MantineProvider>
-  </React.StrictMode>,
-);
+  );
+}

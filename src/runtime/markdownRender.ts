@@ -88,19 +88,50 @@ export function renderMarkdown(body: string): string {
   return md.render(body);
 }
 
+// Process Nunjucks expressions inside a markdown body. Only runs if the body
+// actually contains Nunjucks-looking syntax (`{% ... %}` or `{{ ... }}`) so
+// plain markdown is untouched and no rendering cost is paid for simple
+// documents. Failures fall back to the original body so a malformed tag
+// doesn't break the preview.
+function preprocessBody(
+  body: string,
+  files: Record<string, string>,
+  context: Record<string, unknown>,
+): string {
+  if (!/\{[{%]/.test(body)) return body;
+  try {
+    const env = createEnv(files);
+    return env.renderString(body, context);
+  } catch {
+    return body;
+  }
+}
+
 const DEFAULT_LAYOUT = '_layout.njk';
 
 // Render a .md page through its layout, 11ty-style. Layouts receive
 // { ...frontmatter, content, page } and inject the rendered markdown via
 // `{{ content | safe }}`. If the named layout isn't in `files`, we fall
 // back to a minimal wrapper document so the page still previews.
+//
+// 11ty's default pipeline runs Liquid/Nunjucks on the markdown body BEFORE
+// markdown-it, so `{% for %}`, `{% set %}`, and `{{ ... }}` expressions in
+// the body work. We do the same here — when the pre-processing fails (e.g.
+// the model produced malformed tag syntax) we fall back to the raw body so
+// the page still previews instead of erroring.
 export function renderMarkdownPage(
   path: string,
   files: Record<string, string>,
 ): string {
   const src = files[path] ?? '';
   const { data, body } = parseFrontMatter(src);
-  const content = renderMarkdown(body);
+
+  const preContext = {
+    ...data,
+    page: { path, url: outputPath(path) },
+  };
+  const processedBody = preprocessBody(body, files, preContext);
+  const content = renderMarkdown(processedBody);
   const layoutName =
     typeof data.layout === 'string' && data.layout ? data.layout : DEFAULT_LAYOUT;
 

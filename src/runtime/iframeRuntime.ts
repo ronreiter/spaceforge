@@ -1,4 +1,4 @@
-import picoClasslessCss from '@picocss/pico/css/pico.classless.min.css?raw';
+import { picoClasslessCss } from './picoClassless.generated';
 import { isTemplate, renderTemplate, outputPath } from './nunjucksRender';
 import { isMarkdown, renderMarkdownPage } from './markdownRender';
 
@@ -59,6 +59,23 @@ const NAV_RUNTIME_SCRIPT = `
 // form, table, etc.) with modern typography, spacing and theming. The model
 // writes plain semantic HTML and the preview looks polished by default.
 // Injected first so any user <link>/<style> further down can override it.
+//
+// One caveat: Pico classless centers `body > header`, `body > main`, and
+// `body > footer` in a fixed max-width column (510–1450px depending on
+// breakpoint) with auto side margins and zeroed horizontal padding. The
+// `body > X` selector has specificity 0,0,2 which beats every template's
+// plain `header { … }` / `main { … }` / `footer { … }` rule, so templates
+// can't actually own the page layout — their backgrounds end up boxed
+// inside a centered column. We strip those 6 rules from the Pico stylesheet
+// at load time so templates control layout via normal type selectors.
+const PICO_LAYOUT_RULE_RE =
+  /body>footer,body>header,body>main\{[^}]*\}/g;
+const PICO_LAYOUT_MEDIA_RE =
+  /@media\s*\([^)]*\)\s*\{body>footer,body>header,body>main\{[^}]*\}\}/g;
+export function stripPicoLayoutConstraints(css: string): string {
+  return css.replace(PICO_LAYOUT_MEDIA_RE, '').replace(PICO_LAYOUT_RULE_RE, '');
+}
+const PICO_CLASSLESS = stripPicoLayoutConstraints(picoClasslessCss as string);
 
 function normalizeLocalRef(ref: string): string {
   return ref.replace(/^\.?\/+/, '');
@@ -80,20 +97,43 @@ export function resolvePage(path: string, files: Record<string, string>): string
   return files[path] ?? '';
 }
 
-// Maps a link target (e.g. `about.html`) to the file in storage that should
-// be navigated to. Tries `.md` first, then `.njk`, so generated HTML with flat
-// .html hrefs keeps working whether the source is markdown or a template.
+// Maps a link target (e.g. `about.html`, `/about`, `about/`) to the file in
+// storage that should be navigated to. Tries the ref as-is, then strips any
+// `.html` extension and tries `.md` / `.njk`, then — for extensionless or
+// trailing-slash refs — appends `.md`, `.njk`, `.html`, and finally
+// `index.md` for folder-style URLs. This keeps navigation working whatever
+// href flavor the model emits.
 export function resolveRoute(
   href: string,
   files: Record<string, string>,
 ): string | null {
-  const clean = normalizeLocalRef(href).split('#')[0];
+  const clean = normalizeLocalRef(href).split('#')[0].split('?')[0];
   if (!clean) return null;
   if (clean in files) return clean;
-  const asMd = clean.replace(/\.html?$/, '.md');
-  if (asMd in files) return asMd;
-  const asNjk = clean.replace(/\.html?$/, '.njk');
-  if (asNjk in files) return asNjk;
+
+  const trimmed = clean.replace(/\/+$/, '');
+
+  if (trimmed) {
+    if (trimmed in files) return trimmed;
+
+    const stripHtml = trimmed.replace(/\.html?$/, '');
+    if (stripHtml !== trimmed) {
+      if (`${stripHtml}.md` in files) return `${stripHtml}.md`;
+      if (`${stripHtml}.njk` in files) return `${stripHtml}.njk`;
+    }
+
+    // Extensionless or trailing-slash refs: try common extensions.
+    if (!/\.[a-z0-9]+$/i.test(trimmed)) {
+      if (`${trimmed}.md` in files) return `${trimmed}.md`;
+      if (`${trimmed}.njk` in files) return `${trimmed}.njk`;
+      if (`${trimmed}.html` in files) return `${trimmed}.html`;
+      // Folder-style: `about/` → `about/index.md`.
+      if (`${trimmed}/index.md` in files) return `${trimmed}/index.md`;
+      if (`${trimmed}/index.njk` in files) return `${trimmed}/index.njk`;
+      if (`${trimmed}/index.html` in files) return `${trimmed}/index.html`;
+    }
+  }
+
   return null;
 }
 
@@ -123,7 +163,7 @@ export function injectFrameworkForExport(html: string): string {
 
   const framework = doc.createElement('style');
   framework.setAttribute(FRAMEWORK_STYLE_MARKER, 'pico-classless');
-  framework.textContent = (picoClasslessCss as string) + '\n' + BASE_FONT_CSS;
+  framework.textContent = PICO_CLASSLESS + '\n' + BASE_FONT_CSS;
   head.insertBefore(framework, head.firstChild);
 
   const fontsLink = doc.createElement('link');
@@ -181,7 +221,7 @@ export function renderPage(html: string, files: Record<string, string>): string 
 
   const framework = doc.createElement('style');
   framework.setAttribute(FRAMEWORK_STYLE_MARKER, 'pico-classless');
-  framework.textContent = (picoClasslessCss as string) + '\n' + BASE_FONT_CSS;
+  framework.textContent = PICO_CLASSLESS + '\n' + BASE_FONT_CSS;
   head.insertBefore(framework, head.firstChild);
 
   const fontsLink = doc.createElement('link');

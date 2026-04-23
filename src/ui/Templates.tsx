@@ -18,9 +18,10 @@ import { renderTemplatePreviewHtml } from '../templates/previewSample';
 export type TemplatesProps = {
   templateId: string;
   onSelect: (id: string) => void;
+  readOnly?: boolean;
 };
 
-export function Templates({ templateId, onSelect }: TemplatesProps) {
+export function Templates({ templateId, onSelect, readOnly }: TemplatesProps) {
   return (
     <ScrollArea h="100%" p="md">
       <Stack gap="md">
@@ -34,6 +35,11 @@ export function Templates({ templateId, onSelect }: TemplatesProps) {
             Selecting a template swaps <code>styles.css</code>; switching back
             to Custom restores the generated stylesheet.
           </Text>
+          {readOnly && (
+            <Text c="dimmed" size="xs" mt="xs" fs="italic">
+              You're viewing this site as a viewer. Template changes are disabled.
+            </Text>
+          )}
         </Box>
 
         <SimpleGrid cols={{ base: 1, xs: 2, md: 3, xl: 4 }} spacing="md">
@@ -42,7 +48,8 @@ export function Templates({ templateId, onSelect }: TemplatesProps) {
               key={t.id}
               template={t}
               active={t.id === templateId}
-              onSelect={onSelect}
+              onSelect={readOnly ? () => {} : onSelect}
+              disabled={readOnly}
             />
           ))}
         </SimpleGrid>
@@ -55,10 +62,12 @@ function TemplateCard({
   template,
   active,
   onSelect,
+  disabled,
 }: {
   template: TemplateBundle;
   active: boolean;
   onSelect: (id: string) => void;
+  disabled?: boolean;
 }) {
   const isCustom = template.id === CUSTOM_TEMPLATE_ID;
   const previewHtml = useMemo(() => renderTemplatePreviewHtml(template), [template]);
@@ -75,7 +84,10 @@ function TemplateCard({
         overflow: 'hidden',
       }}
     >
-      <UnstyledButton onClick={() => onSelect(template.id)} disabled={active}>
+      <UnstyledButton
+        onClick={() => onSelect(template.id)}
+        disabled={active || disabled}
+      >
         <TemplatePreview html={previewHtml} />
       </UnstyledButton>
 
@@ -105,7 +117,7 @@ function TemplateCard({
           size="xs"
           variant={active ? 'light' : 'filled'}
           color="neon"
-          disabled={active}
+          disabled={active || disabled}
           onClick={() => onSelect(template.id)}
           fullWidth
         >

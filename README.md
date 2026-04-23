@@ -42,27 +42,54 @@ LLM runs entirely offline.
 
 ```bash
 npm install
-npm run dev        # local dev server
-npm run test       # unit tests
+npm run dev        # Next.js dev server on :3000
+npm run test       # unit tests (vitest)
 npm run typecheck  # tsc --noEmit
-npm run build      # production build
-npm run preview    # serve the production build locally
+npm run build      # Next.js production build
+npm run start      # serve the production build locally
 ```
+
+## Local dev environment
+
+Spaceforge runs end-to-end locally with no cloud dependencies. One-shot:
+
+```bash
+npm install
+npm run dev:local:setup   # docker compose up -d + db:migrate + db:seed:dev
+npm run dev:local         # Next.js on :3000 with AUTH_DRIVER=dev + FsBlobDriver
+```
+
+Open http://localhost:3000 — you're auto-signed in as the seeded dev
+user and land on the dashboard. Create a site, edit it, etc.
+
+Driver toggles (set via env, defaults shown):
+
+- `AUTH_DRIVER=dev` — fixed fake user, no Clerk required. Set to
+  `clerk` to use real auth (needs keys in `.env.local`).
+- `BLOB_DRIVER=fs` — writes to `.spaceforge-local/blob/`. No network,
+  no Docker, no token. Set to `vercel` for real Vercel Blob in
+  preview/production.
+
+Useful sub-scripts:
+
+- `docker compose up -d` — just start Postgres.
+- `npm run db:migrate` — apply Drizzle migrations.
+- `npm run db:seed:dev` — ensure the dev user/team rows exist.
+- `npm run db:studio` — browse the DB in Drizzle Studio.
 
 ## Environment variables
 
-The photo proxy at `/api/photo` needs one env var:
+See `.env.example` for the canonical list. At minimum for the photo
+proxy:
 
 - `UNSPLASH_ACCESS_KEY` — your Unsplash app's **Access Key** (not the
-  Secret Key; the secret isn't used and should not be set).
+  Secret Key).
 
-For local dev, copy `.env.example` to `.env.local` and fill in the key.
-Vite's dev server picks it up and uses it server-side via middleware in
-`vite.config.ts`. In production, set the same var in the Vercel
-dashboard → Project → Settings → Environment Variables.
+Phase 1+ also needs `DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`,
+`CLERK_SECRET_KEY`, `CLERK_WEBHOOK_SECRET`.
 
 ## Deploy
 
-Static build hosted on Vercel. COOP/COEP headers in `vercel.json` are
-required for WebGPU in production. The `api/` folder is auto-deployed
-as Vercel Edge functions.
+Next.js on Vercel. COOP/COEP headers (required for WebGPU) are set in
+`next.config.ts`. Route handlers under `app/api/` are auto-deployed as
+Vercel Functions (Fluid Compute).
