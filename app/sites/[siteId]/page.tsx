@@ -1,6 +1,8 @@
 import { notFound, redirect } from 'next/navigation';
 import { getCurrentUser, isDevAuth } from '../../../lib/auth';
 import { getSiteAccess } from '../../../lib/sites/service';
+
+export const dynamic = 'force-dynamic';
 import { SiteEditor } from './SiteEditor';
 
 // Server component: validates the user has access to this site, then

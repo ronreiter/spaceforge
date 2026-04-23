@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser, isDevAuth } from '../../lib/auth';
 import { listTeamMembers } from '../../lib/sharing/service';
+
+export const dynamic = 'force-dynamic';
 import { TeamView } from './TeamView';
 
 export default async function TeamPage() {

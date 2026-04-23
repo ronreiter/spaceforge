@@ -1,6 +1,10 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser, isDevAuth } from '../../lib/auth';
 import { listSitesForUser } from '../../lib/sites/service';
+
+// Auth-gated + data-backed — must not be prerendered at build time
+// (build can't connect to the user's DB / session).
+export const dynamic = 'force-dynamic';
 import { DashboardView } from './DashboardView';
 
 // Server component: loads the current user and their sites, passes them

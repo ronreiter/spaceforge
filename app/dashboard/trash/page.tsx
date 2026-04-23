@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { getCurrentUser, isDevAuth } from '../../../lib/auth';
 import { listTrashForUser } from '../../../lib/sites/service';
+
+export const dynamic = 'force-dynamic';
 import { TrashView } from './TrashView';
 
 export default async function TrashPage() {
