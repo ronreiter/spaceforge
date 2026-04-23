@@ -16,3 +16,4 @@ tsconfig.tsbuildinfo
 /screenshots/
 # Ad-hoc Playwright MCP screenshots land at the repo root.
 /[0-9][0-9]-*.png
+.env*.local
