@@ -94,10 +94,11 @@ export async function GET(
   return new NextResponse(Buffer.from(bytes), {
     headers: {
       'content-type': contentTypeFor(resolved),
-      // Each artifact lives at a version-scoped key, so it's safe to
-      // cache forever. A republish writes a NEW key and pivots the
-      // site.publishedVersionId pointer atomically.
-      'cache-control': 'public, max-age=31536000, immutable',
+      // Short edge TTL + SWR. The URL path isn't version-scoped — only
+      // the underlying blob key is — so `immutable` here would mean
+      // republishes never propagate. 60s is short enough that edits
+      // show up "right after publish" without hammering the origin.
+      'cache-control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=300',
     },
   });
 }
