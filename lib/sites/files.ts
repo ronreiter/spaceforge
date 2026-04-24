@@ -38,6 +38,13 @@ function contentTypeForPath(path: string): string {
     return 'application/javascript; charset=utf-8';
   if (path.endsWith('.json')) return 'application/json; charset=utf-8';
   if (path.endsWith('.txt')) return 'text/plain; charset=utf-8';
+  if (path.endsWith('.svg')) return 'image/svg+xml';
+  if (path.endsWith('.png')) return 'image/png';
+  if (path.endsWith('.jpg') || path.endsWith('.jpeg')) return 'image/jpeg';
+  if (path.endsWith('.gif')) return 'image/gif';
+  if (path.endsWith('.webp')) return 'image/webp';
+  if (path.endsWith('.avif')) return 'image/avif';
+  if (path.endsWith('.ico')) return 'image/x-icon';
   return 'application/octet-stream';
 }
 
@@ -86,6 +93,48 @@ export async function writeFile(
   const key = draftKey(siteId, path);
   const hash = hashContent(content);
   const bytes = new TextEncoder().encode(content);
+
+  await getBlobDriver().put(key, bytes, {
+    contentType: contentTypeForPath(path),
+  });
+
+  const updatedAt = new Date();
+  await db
+    .insert(schema.siteFiles)
+    .values({
+      siteId,
+      path,
+      blobKey: key,
+      size: bytes.byteLength,
+      contentHash: hash,
+      updatedAt,
+    })
+    .onConflictDoUpdate({
+      target: [schema.siteFiles.siteId, schema.siteFiles.path],
+      set: {
+        blobKey: key,
+        size: bytes.byteLength,
+        contentHash: hash,
+        updatedAt,
+      },
+    });
+  return {
+    path,
+    size: bytes.byteLength,
+    contentHash: hash,
+    updatedAt,
+  };
+}
+
+// Binary write for user-uploaded assets (images, icons). Skips the
+// UTF-8 dance that writeFile does since the bytes aren't text.
+export async function writeBinaryFile(
+  siteId: string,
+  path: string,
+  bytes: Uint8Array,
+): Promise<FileEntry> {
+  const key = draftKey(siteId, path);
+  const hash = crypto.createHash('sha256').update(bytes).digest('hex');
 
   await getBlobDriver().put(key, bytes, {
     contentType: contentTypeForPath(path),

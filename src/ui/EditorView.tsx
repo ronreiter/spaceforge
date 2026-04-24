@@ -26,6 +26,7 @@ export type EditorViewProps = {
   onFileCreate: (path: string, contents: string) => void;
   onFileDelete: (path: string) => void;
   onDownloadZip?: () => void;
+  onUploadAssets?: (files: File[]) => Promise<void>;
   // When true, Monaco is read-only, TipTap is non-editable, and the
   // "New file" / "Delete file" affordances are hidden. Viewer role.
   readOnly?: boolean;
@@ -66,6 +67,7 @@ export function EditorView({
   onFileCreate,
   onFileDelete,
   onDownloadZip,
+  onUploadAssets,
   readOnly,
 }: EditorViewProps) {
   const [selected, setSelected] = useState<string | null>(() => defaultPath(files));
@@ -103,6 +105,7 @@ export function EditorView({
         onFileCreate={onFileCreate}
         onFileDelete={onFileDelete}
         onDownloadZip={onDownloadZip}
+        onUploadAssets={onUploadAssets}
         readOnly={readOnly}
       />
       <Box style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>

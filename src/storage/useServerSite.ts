@@ -8,6 +8,7 @@ import {
   writeFileToServer,
   type ServerSiteMeta,
 } from './serverFiles';
+import { isBinaryPath } from './paths';
 
 // React hook backing the editor with server-side storage. Returns the
 // SiteState + an updater, just like useState — but each update diffs
@@ -25,6 +26,9 @@ export type UseServerSite = {
   meta: ServerSiteMeta | null;
   site: SiteState | null;
   setSite: (updater: SiteState | ((s: SiteState) => SiteState)) => void;
+  /** Refetch the site from the server — used after an out-of-band write
+   *  (asset upload) so the editor sees the new file without a reload. */
+  reload: () => Promise<void>;
   error: string | null;
   saving: boolean;
   lastSavedAt: number | null;
@@ -82,10 +86,14 @@ export function useServerSite(siteId: string): UseServerSite {
       const changes: Array<[string, string]> = [];
       const deletes: string[] = [];
       for (const [path, content] of Object.entries(desired)) {
+        if (isBinaryPath(path)) continue; // binary bytes live on the server only
         if (current[path] !== content) changes.push([path, content]);
       }
       for (const path of Object.keys(current)) {
-        if (!(path in desired)) deletes.push(path);
+        if (path in desired) continue;
+        // Binary assets still get deleted through the same endpoint —
+        // the DELETE route is byte-agnostic.
+        deletes.push(path);
       }
       await Promise.all([
         ...changes.map(([p, c]) => writeFileToServer(siteId, p, c)),
@@ -151,11 +159,32 @@ export function useServerSite(siteId: string): UseServerSite {
     };
   }, [flush]);
 
+  const reload = useCallback(async () => {
+    const { meta: m, state } = await loadSiteFromServer(siteId);
+    // Merge: preserve pending edits the user has made locally (we
+    // don't want a refetch to blow away un-synced keystrokes), but
+    // pick up any new server-side files (e.g. just-uploaded images).
+    syncedFilesRef.current = { ...state.files };
+    setMeta(m);
+    setSiteState((prev) => {
+      if (!prev) return state;
+      const mergedFiles: Record<string, string> = { ...state.files };
+      for (const [path, content] of Object.entries(prev.files)) {
+        // Local edits to text files win — the user's typing isn't on
+        // the server yet. Binary-asset entries are always taken from
+        // the freshly-loaded server snapshot.
+        if (!isBinaryPath(path)) mergedFiles[path] = content;
+      }
+      return { ...prev, files: mergedFiles };
+    });
+  }, [siteId]);
+
   return {
     status,
     meta,
     site,
     setSite,
+    reload,
     error,
     saving,
     lastSavedAt,

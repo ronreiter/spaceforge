@@ -120,7 +120,7 @@ function AppInnerServerSite({
   siteId: string;
   chrome?: SiteChrome;
 }) {
-  const { status, site, setSite, error, saving, lastSavedAt } =
+  const { status, site, setSite, reload, error, saving, lastSavedAt } =
     useServerSite(siteId);
   if (status === 'loading' || !site) {
     return (
@@ -152,6 +152,20 @@ function AppInnerServerSite({
       saving={saving}
       lastSavedAt={lastSavedAt}
       chrome={chrome}
+      onUploadAssets={async (files) => {
+        const fd = new FormData();
+        for (const f of files) fd.append('file', f);
+        const res = await fetch(`/api/sites/${siteId}/upload`, {
+          method: 'POST',
+          credentials: 'same-origin',
+          body: fd,
+        });
+        if (!res.ok) {
+          const body = (await res.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(body?.error ?? `HTTP ${res.status}`);
+        }
+        await reload();
+      }}
     />
   );
 }
@@ -167,12 +181,14 @@ function AppInnerBody({
   saving,
   lastSavedAt,
   chrome,
+  onUploadAssets,
 }: {
   site: SiteState;
   setSite: (updater: SiteState | ((s: SiteState) => SiteState)) => void;
   saving: boolean;
   lastSavedAt: number | null;
   chrome?: SiteChrome;
+  onUploadAssets?: (files: File[]) => Promise<void>;
 }) {
   // Viewer-role collaborators can browse but not mutate. The API layer
   // enforces this too (PUT/DELETE return 403); this makes the UX honest.
@@ -680,6 +696,7 @@ function AppInnerBody({
                   onFileCreate={onFileCreate}
                   onFileDelete={onFileDelete}
                   onDownloadZip={onDownloadZip}
+                  onUploadAssets={onUploadAssets}
                   readOnly={readOnly}
                 />
               </Tabs.Panel>
