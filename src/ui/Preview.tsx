@@ -15,7 +15,12 @@ import {
   IconRefresh,
   IconWorld,
 } from '@tabler/icons-react';
-import { renderPage, resolvePage, resolveRoute, outputPath } from '../runtime/iframeRuntime';
+import {
+  renderPage,
+  resolvePage,
+  resolveRoute,
+  outputPath,
+} from '../runtime/iframeRuntime';
 
 export type PreviewProps = {
   files: Record<string, string>;
@@ -53,12 +58,18 @@ export function Preview({ files }: PreviewProps) {
   // the missing path, not the previous good one.
   useEffect(() => {
     if (!iframeRef.current) return;
-    if (currentPath in files) {
+    // Run the same .html → .md fallback the link-click handler uses, so the
+    // preview works when the current entry was computed at mount time (e.g.
+    // `index.html` as the default) and the backing source file only
+    // appeared later in the edit stream (e.g. `index.md`).
+    const resolved =
+      currentPath in files ? currentPath : resolveRoute(currentPath, files);
+    if (resolved && resolved in files) {
       let html: string;
       try {
-        html = resolvePage(currentPath, files);
+        html = resolvePage(resolved, files);
       } catch (err) {
-        html = `<pre style="padding:1rem;color:#b00;font-family:monospace;white-space:pre-wrap">Template error in ${currentPath}:\n\n${
+        html = `<pre style="padding:1rem;color:#b00;font-family:monospace;white-space:pre-wrap">Template error in ${resolved}:\n\n${
           err instanceof Error ? err.message : String(err)
         }</pre>`;
       }
