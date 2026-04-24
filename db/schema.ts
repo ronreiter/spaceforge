@@ -136,6 +136,23 @@ export const chatMessages = pgTable(
   (t) => [index('chat_messages_site_idx').on(t.siteId, t.id)],
 );
 
+// Per-form notification rules. One row per (site, formName) pair;
+// formName='' applies to every form on the site. On a new
+// submission the handler queries this table and fires an email (if
+// an email address + RESEND_API_KEY are configured) and a webhook
+// POST (if a webhook URL is configured). Both are best-effort.
+export const formNotifications = pgTable(
+  'form_notifications',
+  {
+    siteId: uuid('site_id').notNull().references(() => sites.id, { onDelete: 'cascade' }),
+    formName: text('form_name').notNull().default(''),
+    email: text('email'),
+    webhookUrl: text('webhook_url'),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.siteId, t.formName] })],
+);
+
 // Page views against the public /s/:slug/... serving route. One row per
 // hit. The serving route records them fire-and-forget so latency stays
 // flat; the authed analytics page rolls them up into totals + top
