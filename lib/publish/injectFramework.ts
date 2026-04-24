@@ -80,6 +80,18 @@ export function injectFrameworkServer(html: string, slug?: string): string {
     const base = document.createElement('base');
     base.setAttribute('href', `/s/${slug}/`);
     head.insertBefore(base, head.firstChild);
+
+    // Favicon — a dedicated route renders the user's chosen Tabler icon
+    // as a tiny SVG. Using an absolute URL here so the <base> tag doesn't
+    // make browsers confuse it with an in-site asset. Browsers ignore
+    // any <link rel="icon"> the model may have written in the layout
+    // because we insert ours first and most UAs take the first one.
+    const favLink = document.createElement('link');
+    favLink.setAttribute('rel', 'icon');
+    favLink.setAttribute('type', 'image/svg+xml');
+    favLink.setAttribute('href', `/s/${slug}/favicon.svg`);
+    favLink.setAttribute('data-spaceforge-favicon', 'inserted');
+    head.insertBefore(favLink, head.firstChild);
   }
 
   return '<!doctype html>\n' + document.documentElement.outerHTML;

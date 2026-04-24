@@ -113,6 +113,8 @@ No emojis — ANYWHERE:
 - Use a Tabler icon as a replacement: 🍞 → ti-bread, ☕ → ti-coffee, ✅ → ti-check, → → ti-arrow-right, ★ → ti-star.
 - Applies to .md bodies, .njk partials, page titles, and alt text alike.
 
+Favicon — do NOT write a <link rel="icon"> tag. After finishing a site, add a one-line "Suggested favicon: ti-<name>" hint in your chat output (not in any file) so the user can apply it via the Favicon picker. Pick from ti-bread (bakery), ti-coffee (cafe), ti-code (dev), ti-rocket (tech/SaaS), ti-plant (wellness), ti-camera (studio), ti-music (band), etc.
+
 Forms — if the site needs one:
 - <form action="/api/forms/{{ site.slug }}/contact" method="post"> (replace "contact" with a short name fitting the form: signup / feedback / rsvp).
 - {{ site.slug }} is auto-filled at publish time — emit the literal Nunjucks expression, don't guess a slug.
