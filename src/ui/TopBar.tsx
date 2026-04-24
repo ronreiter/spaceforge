@@ -24,12 +24,14 @@ import {
   IconHistory,
   IconRocket,
   IconRocketOff,
+  IconShare,
   IconSun,
   IconMoon,
   IconTrash,
 } from '@tabler/icons-react';
 import { ModelSelector } from './ModelSelector';
 import { AppBrand } from './AppBrand';
+import { ShareSiteModal } from './ShareSiteModal';
 
 export type TopBarProps = {
   modelId: string;
@@ -131,6 +133,7 @@ export function TopBar(p: TopBarProps) {
   const { setColorScheme } = useMantineColorScheme();
   const computed = useComputedColorScheme('dark', { getInitialValueInEffect: true });
   const dark = computed === 'dark';
+  const [shareOpen, setShareOpen] = useState(false);
 
   const statusColor =
     p.statusKind === 'ready' ? 'teal' : p.statusKind === 'error' ? 'red' : 'blue';
@@ -138,8 +141,11 @@ export function TopBar(p: TopBarProps) {
   const hasSite = typeof p.siteSlug === 'string';
   const canWrite =
     !hasSite || p.role === 'owner' || p.role === 'admin' || p.role === 'editor';
+  const canShare =
+    hasSite && !!p.siteId && (p.role === 'owner' || p.role === 'admin');
 
   return (
+    <>
     <Box
       px="md"
       py="sm"
@@ -280,6 +286,18 @@ export function TopBar(p: TopBarProps) {
             </Anchor>
           </Tooltip>
         )}
+        {canShare && (
+          <Tooltip label="Share with others">
+            <Button
+              variant="default"
+              size="xs"
+              leftSection={<IconShare size={14} />}
+              onClick={() => setShareOpen(true)}
+            >
+              Share
+            </Button>
+          </Tooltip>
+        )}
         {hasSite && canWrite && (
           <PublishSplitButton
             siteId={p.siteId ?? null}
@@ -304,6 +322,13 @@ export function TopBar(p: TopBarProps) {
         )}
       </Group>
     </Box>
+    {canShare && p.siteId && p.siteName && (
+      <ShareSiteModal
+        site={shareOpen ? { id: p.siteId, name: p.siteName } : null}
+        onClose={() => setShareOpen(false)}
+      />
+    )}
+    </>
   );
 }
 
