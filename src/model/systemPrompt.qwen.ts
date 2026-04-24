@@ -117,6 +117,13 @@ Pair icons with labels, never alone.
 
 NO EMOJIS — anywhere. Not in headings, nav, buttons, lists, titles, footers, or content. Unicode emoji (🍞, ☕, 🎉, ✨, ✅, →, …) are banned. Reach for a Tabler icon instead: 🍞 → <i class="ti ti-bread"></i>; ☕ → <i class="ti ti-coffee"></i>; ✅ → <i class="ti ti-check"></i>; → → <i class="ti ti-arrow-right"></i>. Applies to every .md body, every .njk partial, and every page title.
 
+FORMS — contact / signup / feedback forms:
+- <form action="/api/forms/{{ site.slug }}/contact" method="post"> (pick a short name: contact / signup / feedback).
+- {{ site.slug }} is auto-filled at publish time — use the literal expression, don't hardcode a slug.
+- Include a hidden honeypot: <input type="text" name="_company" style="display:none" tabindex="-1" autocomplete="off">
+- Every input needs a <label for="id">; type="email" / type="tel" where appropriate; required on required fields.
+- After submission the user is redirected back with ?submitted=<name> in the URL.
+
 PHOTOS — every content page MUST carry at least one image. Spaceforge proxies Unsplash server-side; no API key in HTML. URL:
   /api/photo?q=<keywords>&seed=<n>&w=<w>&h=<h>
 - Hero near the top of every .md page (1200×600 or 1200×500).

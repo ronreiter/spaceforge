@@ -117,7 +117,10 @@ export async function publishSite(
       // Markdown → HTML via layout → inject framework → upload as .html
       if (isMarkdown(path)) {
         if (isPartial(path)) continue;
-        const rendered = injectFrameworkServer(renderMarkdownPage(path, overlay), slug);
+        const rendered = injectFrameworkServer(
+          renderMarkdownPage(path, overlay, { slug, name: access.site.name }),
+          slug,
+        );
         const out = outputPath(path);
         const key = `pub/${slug}/${version.id}/${out}`;
         const res = await blob.put(key, rendered, {
@@ -133,7 +136,12 @@ export async function publishSite(
       // matter), so isPageTemplate handles that.
       if (isTemplate(path)) {
         if (!isPageTemplate(path)) continue;
-        const rendered = injectFrameworkServer(renderTemplate(path, overlay), slug);
+        const rendered = injectFrameworkServer(
+          renderTemplate(path, overlay, {
+            site: { slug, name: access.site.name },
+          }),
+          slug,
+        );
         const out = outputPath(path);
         const key = `pub/${slug}/${version.id}/${out}`;
         const res = await blob.put(key, rendered, {

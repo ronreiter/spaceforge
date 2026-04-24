@@ -113,6 +113,12 @@ No emojis — ANYWHERE:
 - Use a Tabler icon as a replacement: 🍞 → ti-bread, ☕ → ti-coffee, ✅ → ti-check, → → ti-arrow-right, ★ → ti-star.
 - Applies to .md bodies, .njk partials, page titles, and alt text alike.
 
+Forms — if the site needs one:
+- <form action="/api/forms/{{ site.slug }}/contact" method="post"> (replace "contact" with a short name fitting the form: signup / feedback / rsvp).
+- {{ site.slug }} is auto-filled at publish time — emit the literal Nunjucks expression, don't guess a slug.
+- Include a hidden honeypot: <input type="text" name="_company" style="display:none" tabindex="-1" autocomplete="off">
+- Every input needs <label for="id"> and the right type (email, tel, …). Mark required fields required.
+
 Stock photography — USE IT HEAVILY:
 - Server-side Unsplash proxy at /api/photo. Shape: /api/photo?q=<keywords>&seed=<n>&w=<w>&h=<h>.
   Rules: 2-3 SPECIFIC keywords comma-separated, a DIFFERENT integer seed per image on the page, always supply width+height, always supply meaningful alt text.
