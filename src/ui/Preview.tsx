@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Group,
   ActionIcon,
+  Button,
   TextInput,
   Center,
   Text,
@@ -13,6 +14,7 @@ import {
 import {
   IconArrowLeft,
   IconArrowRight,
+  IconPlayerStop,
   IconRefresh,
   IconWorld,
 } from '@tabler/icons-react';
@@ -28,6 +30,9 @@ export type PreviewProps = {
   /** When true, an overlay with a spinner and "Generating…" sits over the
    *  rendered iframe (the browser-style header/nav above stays interactive). */
   busy?: boolean;
+  /** Click handler for the Stop button rendered inside the overlay.
+   *  When omitted the button is hidden. */
+  onStop?: () => void;
 };
 
 function entryPath(files: Record<string, string>): string | null {
@@ -39,7 +44,7 @@ function entryPath(files: Record<string, string>): string | null {
   return null;
 }
 
-export function Preview({ files, busy }: PreviewProps) {
+export function Preview({ files, busy, onStop }: PreviewProps) {
   const initial = entryPath(files) ?? 'index.html';
   const [history, setHistory] = useState<string[]>([initial]);
   const [cursor, setCursor] = useState(0);
@@ -195,11 +200,23 @@ export function Preview({ files, busy }: PreviewProps) {
               pointerEvents: 'auto',
             }}
           >
-            <Stack gap="xs" align="center">
+            <Stack gap="sm" align="center">
               <Loader size="lg" color="var(--mantine-color-neon-3)" />
               <Text fw={600} size="sm" c="white">
                 Generating…
               </Text>
+              {onStop && (
+                <Button
+                  size="xs"
+                  color="red"
+                  variant="filled"
+                  leftSection={<IconPlayerStop size={14} />}
+                  onClick={onStop}
+                  mt={4}
+                >
+                  Stop
+                </Button>
+              )}
             </Stack>
           </Box>
         )}
