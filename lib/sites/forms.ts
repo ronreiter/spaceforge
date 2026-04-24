@@ -2,6 +2,7 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 import { db, schema } from '../../db/client';
 import type { AuthedUser } from '../auth/types';
 import { getSiteAccess, ValidationError } from './service';
+import { dispatchNotifications } from './formNotify';
 
 // Server-side service for form submissions.
 //
@@ -50,6 +51,19 @@ export async function recordSubmission(input: {
       ip: input.ip ?? null,
     })
     .returning();
+
+  // Fire notifications asynchronously — don't block the public
+  // redirect on email/webhook delivery.
+  void dispatchNotifications({
+    siteId: site.id,
+    siteName: site.name,
+    siteSlug: site.slug,
+    formName: name,
+    data: input.data,
+    submissionId: (row as SubmissionRow).id,
+    createdAt: (row as SubmissionRow).createdAt,
+  });
+
   return row as SubmissionRow;
 }
 
