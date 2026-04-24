@@ -26,12 +26,12 @@ import {
   IconTrash,
   IconShare,
   IconUsers,
-  IconWorld,
 } from '@tabler/icons-react';
 import type { AuthedUser } from '../../lib/auth/types';
 import type { SiteSummary } from '../../lib/sites/service';
 import type { CollabRole, CollaboratorRow } from '../../lib/sharing/service';
 import { useAlert, useConfirm } from '../../src/ui/dialogs';
+import { AppHeader } from '../../src/ui/AppHeader';
 
 export function DashboardView({
   user,
@@ -116,33 +116,25 @@ export function DashboardView({
 
   return (
     <AppShell header={{ height: 56 }} padding="md">
-      <AppShell.Header>
-        <Container size="xl" h="100%">
-          <Group h="100%" justify="space-between" wrap="nowrap">
-            <Group gap="sm" wrap="nowrap">
-              <IconWorld size={20} />
-              <Title order={4}>Spaceforge</Title>
-            </Group>
-            <Group gap="md" wrap="nowrap">
-              <Anchor component={Link} href="/dashboard/trash" c="dimmed">
-                <Group gap={4} wrap="nowrap">
-                  <IconTrash size={14} />
-                  <Text size="sm">Trash</Text>
-                </Group>
-              </Anchor>
-              <Anchor component={Link} href="/team" c="dimmed">
-                <Group gap={4} wrap="nowrap">
-                  <IconUsers size={14} />
-                  <Text size="sm">Team</Text>
-                </Group>
-              </Anchor>
-              <Text size="sm" c="dimmed">
-                {user.email}
-              </Text>
-            </Group>
-          </Group>
-        </Container>
-      </AppShell.Header>
+      <AppHeader
+        user={user}
+        nav={
+          <>
+            <Anchor component={Link} href="/dashboard/trash" c="dimmed">
+              <Group gap={4} wrap="nowrap">
+                <IconTrash size={14} />
+                <Text size="sm">Trash</Text>
+              </Group>
+            </Anchor>
+            <Anchor component={Link} href="/team" c="dimmed">
+              <Group gap={4} wrap="nowrap">
+                <IconUsers size={14} />
+                <Text size="sm">Team</Text>
+              </Group>
+            </Anchor>
+          </>
+        }
+      />
 
       <AppShell.Main>
         <Container size="xl">

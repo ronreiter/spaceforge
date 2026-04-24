@@ -29,6 +29,7 @@ import {
   IconTrash,
 } from '@tabler/icons-react';
 import { ModelSelector } from './ModelSelector';
+import { AppBrand } from './AppBrand';
 
 export type TopBarProps = {
   modelId: string;
@@ -158,23 +159,19 @@ export function TopBar(p: TopBarProps) {
             </Anchor>
           </Tooltip>
         )}
-        <Group gap={8} wrap="nowrap" align="center">
-          <IconRocket
-            size={24}
-            stroke={1.8}
-            color="var(--mantine-color-neon-3)"
-          />
-          {!hasSite && (
-            <>
-              <Text fw={700} size="md">
-                Spaceforge
-              </Text>
-              <Text c="dimmed" size="xs" visibleFrom="md">
-                browser-local website builder
-              </Text>
-            </>
-          )}
-        </Group>
+        {hasSite ? (
+          // Inside the editor we only show the rocket mark so the site
+          // name gets the breathing room next to it.
+          <Group gap={8} wrap="nowrap" align="center">
+            <IconRocket
+              size={24}
+              stroke={1.8}
+              color="var(--mantine-color-neon-3)"
+            />
+          </Group>
+        ) : (
+          <AppBrand size="md" linkToDashboard={false} subtitle="browser-local website builder" />
+        )}
         {hasSite && (
           <Group gap={8} wrap="nowrap" align="center" style={{ minWidth: 0 }}>
             <Box style={{ minWidth: 0 }}>
