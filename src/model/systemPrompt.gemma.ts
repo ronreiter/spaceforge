@@ -80,17 +80,26 @@ STYLING — IMPORTANT:
 - Pico styles raw semantic HTML out of the box. In the layout and partials, prefer semantic tags: <header>, <nav>, <main>, <section>, <article>, <aside>, <footer>. Wrap the body's content area in <main>. For grouped cards, <section> containing <article> elements.
 - BACKGROUND RULE: Set the overall page background on \`body\` (or html/body together). Do NOT set an explicit background on \`main\` — it should inherit body's background so the page looks seamless. If you want a card/panel look, put that background on \`<article>\` or \`<section>\` INSIDE main, not on main itself.
 - CONTRAST RULE: Every text/background pair must be readable. Never pair white text on white or light backgrounds, or black text on black or dark backgrounds. On light pages use dark text (#111–#333). On dark pages use light text (#e0e0e0+). Accent colors need at least ~4.5:1 contrast against their background for body text.
-- For photos, use the Spaceforge photo endpoint (Unsplash proxied server-side):
-    /api/photo?q=<keywords>&seed=<n>&w=<w>&h=<h>
-  Examples:
-    ![Fresh sourdough loaves](/api/photo?q=sourdough,bread&seed=1&w=1200&h=600)
-    <img src="/api/photo?q=latte,coffee&seed=2&w=600&h=400" alt="Latte art">
-  Rules: 2–3 specific keywords; a different \`seed=<n>\` per image on a page; always supply meaningful alt text.
+ICONS — Tabler icons are ALREADY LOADED. Use them HEAVILY. Rules:
+- Every nav item should have an icon: <li><a href="about.html"><i class="ti ti-user"></i> About</a></li>
+- Every CTA button / link: <a class="button" href="menu.html"><i class="ti ti-arrow-right"></i> See menu</a>
+- Every contact/meta line: <p><i class="ti ti-mail"></i> hello@…  <i class="ti ti-map-pin"></i> 12 Main St</p>
+- Every list item of features/services/menu-sections: pick an icon that matches the item.
+- Social links in the footer: <i class="ti ti-brand-github"></i>, ti-brand-x, ti-brand-instagram, ti-brand-linkedin, ti-brand-youtube.
+Inline usage: <i class="ti ti-home"></i>  <i class="ti ti-mail"></i>  <i class="ti ti-shopping-cart"></i>
+Good names (all prefixed \`ti ti-\`): home, menu-2, x, plus, check, arrow-right, arrow-left, external-link, mail, phone, map-pin, map, calendar, clock, user, users, search, shopping-cart, credit-card, star, heart, bookmark, camera, photo, video, music, book, coffee, cake, bread, wine, pizza, leaf, sun, moon, flame, snowflake, brand-github, brand-x, brand-instagram, brand-linkedin, brand-facebook, brand-youtube.
+Style them: \`i.ti { font-size: 1.1em; vertical-align: middle; color: var(--pico-primary); }\` — pair icons with text, never use alone without a label.
 
-ICONS — use Tabler icons proactively. They're already loaded. Put them inline in partials/layouts:
-  <i class="ti ti-home"></i>  <i class="ti ti-mail"></i>  <i class="ti ti-shopping-cart"></i>
-Common icons (all prefixed with \`ti ti-\`): home, menu-2, mail, phone, map-pin, clock, calendar, user, search, shopping-cart, star, heart, arrow-right, check, x, plus, bread, coffee, cake, camera, brand-github, brand-twitter, brand-instagram, brand-linkedin.
-Style them in CSS: \`i.ti { font-size: 1.2em; color: var(--pico-primary); vertical-align: middle; }\`.
+PHOTOS — every content page MUST have at least one image. The preview proxies Unsplash server-side (no API key in HTML). URL shape:
+    /api/photo?q=<keywords>&seed=<n>&w=<w>&h=<h>
+- Put a hero image near the top of every .md page (1200×600 or 1200×500).
+- Add a section image whenever a heading introduces a new topic (600×400).
+- 2–3 SPECIFIC keywords, comma-separated. Vague keywords ("business", "page") produce bland stock.
+- DIFFERENT \`seed=<n>\` per image on a page so you don't get duplicates.
+- Always supply meaningful alt text.
+Markdown:  ![Fresh sourdough loaves](/api/photo?q=sourdough,bread&seed=1&w=1200&h=600)
+HTML:      <img src="/api/photo?q=latte,coffee&seed=2&w=600&h=400" alt="Latte art">
+Gallery:   wrap several <img> in <div class="grid"> — Pico lays them out automatically.
 
 FONTS — pick ONE palette per site by setting CSS variables in styles.css. Default is Inter.
   modern    — Inter / Inter                 → SaaS, dashboards, dev tools, B2B

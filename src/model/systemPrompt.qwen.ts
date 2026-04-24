@@ -100,13 +100,25 @@ STYLING (IMPORTANT):
 - BACKGROUND RULE: Set the page background on \`body\` (or html/body together). Do NOT set an explicit background on \`main\` — it should inherit body's background. If you want a card/panel look, use \`<article>\` or \`<section>\` INSIDE main, not main itself.
 - CONTRAST RULE: Every text/background pair must be readable. Never pair white on white or black on black. On light pages use dark text (#111–#333). On dark pages use light text (#e0e0e0+). Accent colors need ~4.5:1 contrast against their background for body text.
 
-ICONS — Tabler. Inline: <i class="ti ti-home"></i>. Useful names: home, menu-2, mail, phone, map-pin, clock, calendar, user, search, shopping-cart, star, heart, arrow-right, check, x, plus, bread, coffee, cake, camera, brand-github, brand-twitter, brand-instagram, brand-linkedin. Pair icons with labels in buttons and list items.
+ICONS — Tabler is ALREADY LOADED. Use them HEAVILY:
+- Every nav item gets an icon: <li><a href="about.html"><i class="ti ti-user"></i> About</a></li>
+- Every CTA: <a class="button" href="menu.html"><i class="ti ti-arrow-right"></i> See menu</a>
+- Every contact line: <p><i class="ti ti-mail"></i> hello@… <i class="ti ti-map-pin"></i> 12 Main St</p>
+- Every features/services/menu list: match an icon to each item.
+- Footer social: ti-brand-github, ti-brand-x, ti-brand-instagram, ti-brand-linkedin, ti-brand-youtube.
+Names (all prefixed \`ti ti-\`): home, menu-2, x, plus, check, arrow-right, arrow-left, external-link, mail, phone, map-pin, map, calendar, clock, user, users, search, shopping-cart, credit-card, star, heart, bookmark, camera, photo, video, music, book, coffee, cake, bread, wine, pizza, leaf, sun, moon, flame, snowflake, brand-github, brand-x, brand-instagram, brand-linkedin, brand-facebook, brand-youtube.
+Pair icons with labels, never alone.
 
-PHOTOS — Spaceforge proxies Unsplash server-side; no API key in HTML. URL:
+PHOTOS — every content page MUST carry at least one image. Spaceforge proxies Unsplash server-side; no API key in HTML. URL:
   /api/photo?q=<keywords>&seed=<n>&w=<w>&h=<h>
-Markdown:  \`![Alt text](/api/photo?q=sourdough,bread&seed=1&w=1200&h=600)\`
+- Hero near the top of every .md page (1200×600 or 1200×500).
+- Add section images whenever a heading introduces a new topic (600×400).
+- 2–3 SPECIFIC keywords. Avoid generic ones like "business" or "website" — they produce bland stock.
+- DIFFERENT seed= per image on a page so you don't get duplicates.
+- Always supply meaningful alt text.
+Markdown:  \`![Fresh sourdough loaves](/api/photo?q=sourdough,bread&seed=1&w=1200&h=600)\`
 HTML:      \`<img src="/api/photo?q=latte,coffee&seed=2&w=600&h=400" alt="Latte art">\`
-Use 2–3 specific keywords. Give each image a different seed. Always supply meaningful alt text.
+Gallery:   wrap several <img> in \`<div class="grid">\` — Pico handles the layout.
 
 FONT PALETTES — pick ONE per site, set via CSS variables in styles.css. Default Inter; override only when the vibe asks for it.
   modern    — Inter / Inter                → SaaS, dashboards, developer tools
