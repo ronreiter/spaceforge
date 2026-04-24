@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { db, schema } from '../../../../db/client';
 import { getBlobDriver } from '../../../../lib/storage/blob';
 import { recordViewBestEffort } from '../../../../lib/sites/analytics';
+import { renderFaviconSvg } from '../../../../lib/favicon/render';
 
 // Public site serving. Resolves /s/<slug>/<...path> to a blob in
 // pub/<slug>/<published_version_id>/<path>. Always versioned so cached
@@ -53,6 +54,21 @@ export async function GET(
     // shouldn't be able to tell a site was trashed.
     return new NextResponse('Site not found', { status: 404 });
   }
+  const resolvedEarly = defaultPathFor(parts);
+
+  // Favicon is dynamic — served even on unpublished sites so the editor
+  // preview and the dashboard-embedded URL both render a brand mark.
+  // The link is injected by injectFramework; we resolve it here.
+  if (resolvedEarly === 'favicon.svg' || resolvedEarly === 'favicon.svg.html') {
+    const svg = renderFaviconSvg(site.faviconIcon ?? null);
+    return new NextResponse(svg, {
+      headers: {
+        'content-type': 'image/svg+xml; charset=utf-8',
+        'cache-control': 'public, max-age=0, s-maxage=300, stale-while-revalidate=600',
+      },
+    });
+  }
+
   if (!site.publishedVersionId) {
     return new NextResponse(
       `This site has not been published yet.`,
@@ -60,7 +76,7 @@ export async function GET(
     );
   }
 
-  const resolved = defaultPathFor(parts);
+  const resolved = resolvedEarly;
 
   // Look the artifact up in site_versions' manifest jsonb. Keeps the
   // version id and output path internal; nothing downstream needs to

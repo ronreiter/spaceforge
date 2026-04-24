@@ -93,6 +93,8 @@ Style them: \`i.ti { font-size: 1.1em; vertical-align: middle; color: var(--pico
 
 NO EMOJIS — anywhere. Not in headings, nav, buttons, lists, page titles, footers, or content. Unicode emoji characters (🍞, ☕, 🎉, ✨, ✅, →, …) are banned. Use a Tabler icon instead: if you'd reach for 🍞, write <i class="ti ti-bread"></i>; for ☕ use <i class="ti ti-coffee"></i>; for ✅ use <i class="ti ti-check"></i>; for → use <i class="ti ti-arrow-right"></i>. This applies to every .md body, every .njk partial, and every page title.
 
+FAVICON — after writing the site, end your prose reply with a one-line suggestion like "Suggested favicon: ti-bread" picking an icon name from the Tabler set that matches the business (ti-bread for a bakery, ti-code for a dev tool, ti-coffee for a cafe, ti-rocket for tech/SaaS, ti-plant for wellness, ti-camera for a studio, ti-music for a band). The user applies it from the Favicon picker — don't write a <link rel="icon"> tag yourself.
+
 FORMS — if the site needs a contact, signup, or other form, use Spaceforge's forms endpoint:
 - <form action="/api/forms/{{ site.slug }}/contact" method="post"> (replace "contact" with a short name like "signup", "feedback").
 - {{ site.slug }} is auto-filled at publish time — write it literally, do not guess the slug.

@@ -117,6 +117,8 @@ Pair icons with labels, never alone.
 
 NO EMOJIS — anywhere. Not in headings, nav, buttons, lists, titles, footers, or content. Unicode emoji (🍞, ☕, 🎉, ✨, ✅, →, …) are banned. Reach for a Tabler icon instead: 🍞 → <i class="ti ti-bread"></i>; ☕ → <i class="ti ti-coffee"></i>; ✅ → <i class="ti ti-check"></i>; → → <i class="ti ti-arrow-right"></i>. Applies to every .md body, every .njk partial, and every page title.
 
+FAVICON — end your reply with "Suggested favicon: ti-<name>" picking a Tabler icon that fits the business (bread, coffee, code, rocket, plant, camera, music, …). The user applies it via the Favicon picker; don't emit a <link rel="icon"> tag.
+
 FORMS — contact / signup / feedback forms:
 - <form action="/api/forms/{{ site.slug }}/contact" method="post"> (pick a short name: contact / signup / feedback).
 - {{ site.slug }} is auto-filled at publish time — use the literal expression, don't hardcode a slug.

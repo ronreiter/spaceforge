@@ -24,6 +24,7 @@ import {
   IconEye,
   IconForms,
   IconHistory,
+  IconPhoto,
   IconRocket,
   IconRocketOff,
   IconShare,
@@ -35,6 +36,7 @@ import Link from 'next/link';
 import { ModelSelector } from './ModelSelector';
 import { AppBrand } from './AppBrand';
 import { ShareSiteModal } from './ShareSiteModal';
+import { FaviconModal } from './FaviconModal';
 
 export type TopBarProps = {
   modelId: string;
@@ -137,6 +139,7 @@ export function TopBar(p: TopBarProps) {
   const computed = useComputedColorScheme('dark', { getInitialValueInEffect: true });
   const dark = computed === 'dark';
   const [shareOpen, setShareOpen] = useState(false);
+  const [faviconOpen, setFaviconOpen] = useState(false);
 
   const statusColor =
     p.statusKind === 'ready' ? 'teal' : p.statusKind === 'error' ? 'red' : 'blue';
@@ -289,6 +292,18 @@ export function TopBar(p: TopBarProps) {
             </Anchor>
           </Tooltip>
         )}
+        {hasSite && p.siteId && canWrite && (
+          <Tooltip label="Favicon">
+            <Button
+              variant="default"
+              size="xs"
+              leftSection={<IconPhoto size={14} />}
+              onClick={() => setFaviconOpen(true)}
+            >
+              Favicon
+            </Button>
+          </Tooltip>
+        )}
         {hasSite && p.siteId && (
           <Tooltip label="Analytics">
             <Anchor component={Link} href={`/sites/${p.siteId}/analytics`} underline="never">
@@ -357,6 +372,13 @@ export function TopBar(p: TopBarProps) {
       <ShareSiteModal
         site={shareOpen ? { id: p.siteId, name: p.siteName } : null}
         onClose={() => setShareOpen(false)}
+      />
+    )}
+    {hasSite && p.siteId && (
+      <FaviconModal
+        siteId={p.siteId}
+        opened={faviconOpen}
+        onClose={() => setFaviconOpen(false)}
       />
     )}
     </>

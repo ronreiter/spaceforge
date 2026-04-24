@@ -54,6 +54,9 @@ export const sites = pgTable(
     slug: text('slug').notNull().unique(),
     name: text('name').notNull(),
     templateId: text('template_id').notNull().default('custom'),
+    // Tabler icon name without the "ti-" prefix (e.g. "rocket", "bread").
+    // Null → the route-level fallback favicon is served.
+    faviconIcon: text('favicon_icon'),
     // publishedVersionId is a FK to site_versions, but defined as plain uuid
     // here to avoid the circular FK (site_versions.siteId → sites.id). Set
     // via plain UPDATE after inserting a version row.
