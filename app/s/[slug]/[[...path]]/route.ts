@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '../../../../db/client';
 import { getBlobDriver } from '../../../../lib/storage/blob';
+import { recordViewBestEffort } from '../../../../lib/sites/analytics';
 
 // Public site serving. Resolves /s/<slug>/<...path> to a blob in
 // pub/<slug>/<published_version_id>/<path>. Always versioned so cached
@@ -37,7 +38,7 @@ function contentTypeFor(path: string): string {
 }
 
 export async function GET(
-  _req: Request,
+  req: Request,
   ctx: { params: Promise<{ slug: string; path?: string[] }> },
 ) {
   const { slug, path: parts } = await ctx.params;
@@ -89,6 +90,22 @@ export async function GET(
   }
 
   const bytes = await getBlobDriver().get(entry.blobKey);
+
+  // Record a page view. HTML hits only — we don't want to double-count
+  // the 20 asset requests that come from a single page load.
+  if (resolved.endsWith('.html') || resolved.endsWith('.htm')) {
+    recordViewBestEffort({
+      siteId: site.id,
+      path: '/' + resolved,
+      referrer: req.headers.get('referer'),
+      userAgent: req.headers.get('user-agent'),
+      ip:
+        req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+        req.headers.get('x-real-ip'),
+      host: req.headers.get('host'),
+    });
+  }
+
   // NextResponse wants BodyInit; Buffer.from(Uint8Array) gives us a
   // node-friendly Buffer that matches the expected type.
   return new NextResponse(Buffer.from(bytes), {

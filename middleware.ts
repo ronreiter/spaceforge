@@ -113,9 +113,8 @@ export default async function middleware(req: NextRequest) {
 // Run on the Node.js runtime so `pg`/`drizzle`/`node:crypto` (via the
 // custom-domain lookup and Clerk server imports) are usable. On Vercel
 // this is backed by Fluid Compute, not the edge runtime.
-export const runtime = 'nodejs';
-
 export const config = {
+  runtime: 'nodejs',
   matcher: [
     // Skip Next internals and static files.
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico)$).*)',

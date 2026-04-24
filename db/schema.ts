@@ -133,6 +133,25 @@ export const chatMessages = pgTable(
   (t) => [index('chat_messages_site_idx').on(t.siteId, t.id)],
 );
 
+// Page views against the public /s/:slug/... serving route. One row per
+// hit. The serving route records them fire-and-forget so latency stays
+// flat; the authed analytics page rolls them up into totals + top
+// pages / referrers.
+export const pageViews = pgTable(
+  'page_views',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    siteId: uuid('site_id').notNull().references(() => sites.id, { onDelete: 'cascade' }),
+    path: text('path').notNull(),
+    referrer: text('referrer'),
+    userAgent: text('user_agent'),
+    ip: text('ip'),
+    host: text('host'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('page_views_site_idx').on(t.siteId, t.createdAt)],
+);
+
 // Form submissions captured from a published site. The public
 // POST /api/forms/:slug/:name handler writes into this table; the
 // editor surfaces the submissions under /sites/:id/forms. Data is

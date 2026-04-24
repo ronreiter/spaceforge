@@ -29,6 +29,13 @@
       "when": 1777033522820,
       "tag": "0003_form_submissions",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1777034205370,
+      "tag": "0004_page_views",
+      "breakpoints": true
     }
   ]
 }

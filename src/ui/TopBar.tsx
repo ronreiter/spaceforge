@@ -18,6 +18,7 @@ import {
 } from '@mantine/core';
 import {
   IconArrowLeft,
+  IconChartBar,
   IconCheck,
   IconChevronDown,
   IconEye,
@@ -284,6 +285,20 @@ export function TopBar(p: TopBarProps) {
             <Anchor href={`/s/${p.siteSlug}/`} target="_blank" rel="noopener">
               <Button variant="default" size="xs" leftSection={<IconEye size={14} />} component="span">
                 View
+              </Button>
+            </Anchor>
+          </Tooltip>
+        )}
+        {hasSite && p.siteId && (
+          <Tooltip label="Analytics">
+            <Anchor component={Link} href={`/sites/${p.siteId}/analytics`} underline="never">
+              <Button
+                variant="default"
+                size="xs"
+                leftSection={<IconChartBar size={14} />}
+                component="span"
+              >
+                Analytics
               </Button>
             </Anchor>
           </Tooltip>
