@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { AppShell, Tabs, Box } from '@mantine/core';
+import { AppShell, Box, Tabs } from '@mantine/core';
 import { IconEye, IconLayoutGrid, IconEdit } from '@tabler/icons-react';
 import { BrowserGate } from './ui/BrowserGate';
 import { TopBar } from './ui/TopBar';
@@ -200,6 +200,23 @@ function AppInnerBody({
 
   const fileBuffers = useRef<Record<string, string>>({});
 
+  // Abort + watchdog state for the "stop generating" button and the
+  // auto-retry-on-stall behaviour. See runPrompt below.
+  const abortRef = useRef<AbortController | null>(null);
+  const watchdogRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastTokenAtRef = useRef<number>(0);
+  const retriesRef = useRef<number>(0);
+  const lastPromptRef = useRef<string | null>(null);
+  const STALL_MS = 45_000;
+  const MAX_RETRIES = 2;
+
+  function clearWatchdog() {
+    if (watchdogRef.current !== null) {
+      clearInterval(watchdogRef.current);
+      watchdogRef.current = null;
+    }
+  }
+
   // Per-file progress aggregation. transformers.js emits one stream of progress
   // events per shard; we aggregate them so the bar reflects overall load.
   const fileProgress = useRef<Map<string, { loaded: number; total: number }>>(new Map());
@@ -272,6 +289,57 @@ function AppInnerBody({
     async (text: string) => {
       if (!generator) return;
       setBusy(true);
+      lastPromptRef.current = text;
+
+      // Abort any prior in-flight generation; set up a fresh controller.
+      if (abortRef.current) abortRef.current.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      // Watchdog: if no new token arrives within STALL_MS, assume the
+      // WASM runtime hung, abort this attempt, and re-queue the prompt
+      // for retry (up to MAX_RETRIES). After that the user has to step
+      // in — either Stop or try a different model.
+      lastTokenAtRef.current = Date.now();
+      clearWatchdog();
+      watchdogRef.current = setInterval(() => {
+        if (controller.signal.aborted) return;
+        if (Date.now() - lastTokenAtRef.current < STALL_MS) return;
+        controller.abort();
+        clearWatchdog();
+        if (retriesRef.current < MAX_RETRIES && lastPromptRef.current) {
+          retriesRef.current += 1;
+          const attempt = retriesRef.current + 1;
+          const total = MAX_RETRIES + 1;
+          setSite((s) => ({
+            ...s,
+            chatHistory: [
+              ...s.chatHistory,
+              {
+                role: 'assistant',
+                content: `⟳ Generation stalled — retrying (attempt ${attempt} of ${total})…`,
+              },
+            ],
+          }));
+          // Hand off to the "auto-run queued prompt when ready" effect.
+          setQueuedPrompt(lastPromptRef.current);
+        } else {
+          setSite((s) => ({
+            ...s,
+            chatHistory: [
+              ...s.chatHistory,
+              {
+                role: 'assistant',
+                content:
+                  '⚠️ Generation stalled. Try Stop and re-send, switch to a smaller model, or refresh the page.',
+              },
+            ],
+          }));
+        }
+      }, 5000);
+      const bumpLastToken = () => {
+        lastTokenAtRef.current = Date.now();
+      };
 
       const userMsg: ChatMessage = { role: 'user', content: text };
       const snapshot: SiteState = {
@@ -294,8 +362,14 @@ function AppInnerBody({
 
       const entry = getModel(modelId) ?? fallbackEntry(modelId);
 
-      await runGeneration(generator, entry, snapshot, text, {
+      await runGeneration(
+        generator,
+        entry,
+        snapshot,
+        text,
+        {
         onProse: (chunk) => {
+          bumpLastToken();
           tokens += chunk.length / 4;
           setSite((s) => {
             const h = [...s.chatHistory];
@@ -307,13 +381,16 @@ function AppInnerBody({
           });
         },
         onFileStart: (path) => {
+          bumpLastToken();
           fileBuffers.current[path] = '';
         },
         onFileChunk: (path, chunk) => {
+          bumpLastToken();
           tokens += chunk.length / 4;
           fileBuffers.current[path] = (fileBuffers.current[path] ?? '') + chunk;
         },
         onFileEnd: (path) => {
+          bumpLastToken();
           filesTouched += 1;
           const buf = stripCodeFences(fileBuffers.current[path] ?? '');
           delete fileBuffers.current[path];
@@ -353,6 +430,9 @@ function AppInnerBody({
         onComplete: () => {
           setBusy(false);
           clearInterval(tick);
+          clearWatchdog();
+          retriesRef.current = 0;
+          if (abortRef.current === controller) abortRef.current = null;
           setTps(0);
           // If the model produced prose but never emitted a ===FILE:=== block,
           // the site is unchanged. Tell the user explicitly so they know to
@@ -373,7 +453,16 @@ function AppInnerBody({
         onError: (err) => {
           setBusy(false);
           clearInterval(tick);
+          clearWatchdog();
+          if (abortRef.current === controller) abortRef.current = null;
           setTps(0);
+          // AbortError fires when the user clicks Stop or the watchdog
+          // pulls the plug; in both cases the chat already has a more
+          // specific note so suppress the generic "Error: …" line.
+          const isAbort =
+            err?.name === 'AbortError' ||
+            /abort|aborted/i.test(err?.message ?? '');
+          if (isAbort) return;
           setSite((s) => ({
             ...s,
             chatHistory: [
@@ -382,10 +471,36 @@ function AppInnerBody({
             ],
           }));
         },
-      });
+        },
+        controller.signal,
+      );
     },
     [generator, modelId, site],
   );
+
+  // Public stop handler: abort any in-flight generation, reset counters,
+  // and mark the chat so the user knows what happened.
+  const onStopGeneration = useCallback(() => {
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    clearWatchdog();
+    retriesRef.current = 0;
+    setQueuedPrompt(null);
+    setBusy(false);
+    setTps(0);
+    setSite((s) => {
+      const h = [...s.chatHistory];
+      const last = h[h.length - 1];
+      if (last && last.role === 'assistant' && last.content.trim() === '') {
+        h[h.length - 1] = { ...last, content: 'Generation stopped.' };
+      } else {
+        h.push({ role: 'assistant', content: 'Generation stopped.' });
+      }
+      return { ...s, chatHistory: h };
+    });
+  }, [setSite]);
 
   // Run queued prompt once the model becomes ready.
   useEffect(() => {
@@ -548,7 +663,7 @@ function AppInnerBody({
                 </Tabs.Tab>
               </Tabs.List>
               <Tabs.Panel value="preview" style={{ flex: 1, minHeight: 0 }}>
-                <Preview files={previewFiles} />
+                <Preview files={previewFiles} busy={busy} onStop={onStopGeneration} />
               </Tabs.Panel>
               <Tabs.Panel value="edit" style={{ flex: 1, minHeight: 0 }}>
                 <EditorView
