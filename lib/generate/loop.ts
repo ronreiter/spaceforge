@@ -7,6 +7,10 @@ export type LoopOptions = {
   siteId: string;
   userPrompt: string;
   models: ModelCalls;
+  /** Applies the planner's chosen template to the site row (templates DB update
+   *  is role-gated at the API boundary; the loop takes a callback so it stays
+   *  pure). No-op if omitted. */
+  applyTemplate?: (templateId: string) => Promise<void>;
   /** Hard cap on iterations (= files written + critic-only passes). */
   maxIterations?: number;
   /** Cap on extra files the critic is allowed to add beyond the plan. */
@@ -39,6 +43,9 @@ export async function runGenerationLoop(opts: LoopOptions): Promise<LoopResult> 
 
   const plan = await opts.models.plan({ userPrompt: opts.userPrompt });
   await opts.onEvent({ type: 'plan', plan });
+  if (opts.applyTemplate && plan.templateId) {
+    await opts.applyTemplate(plan.templateId);
+  }
 
   const queue: PlannedFile[] = [...plan.files];
   const filesWritten: string[] = [];
@@ -57,6 +64,7 @@ export async function runGenerationLoop(opts: LoopOptions): Promise<LoopResult> 
       await opts.onEvent({ type: 'step_start', iter, file: next });
       const content = await opts.models.writeFile({
         siteSummary: plan.summary,
+        templateId: plan.templateId,
         manifest: await listFiles(opts.siteId),
         feedback,
         file: next,

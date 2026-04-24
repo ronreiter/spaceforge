@@ -1,6 +1,11 @@
 import type { NextRequest } from 'next/server';
 import { requireUser } from '../../../../../lib/auth';
-import { getSiteAccess, roleAtLeast } from '../../../../../lib/sites/service';
+import {
+  getSiteAccess,
+  roleAtLeast,
+  updateSite,
+} from '../../../../../lib/sites/service';
+import { getTemplate } from '../../../../../src/templates/registry';
 import { runGenerationLoop } from '../../../../../lib/generate/loop';
 import { gatewayModelCalls } from '../../../../../lib/generate/model';
 import type { LoopEvent } from '../../../../../lib/generate/types';
@@ -67,6 +72,13 @@ export async function POST(
             executorModel: process.env.AGENT_EXECUTOR_MODEL,
             criticModel: process.env.AGENT_CRITIC_MODEL,
           }),
+          applyTemplate: async (templateId) => {
+            // Only apply a template the registry knows about — silently
+            // fall through to the site's existing templateId ("custom" by
+            // default) if the planner invents one.
+            if (!getTemplate(templateId)) return;
+            await updateSite(user, siteId, { templateId });
+          },
           onEvent: send,
           signal: req.signal,
         });
