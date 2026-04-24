@@ -108,7 +108,9 @@ export async function GET(
   const bytes = await getBlobDriver().get(entry.blobKey);
 
   // Record a page view. HTML hits only — we don't want to double-count
-  // the 20 asset requests that come from a single page load.
+  // the 20 asset requests that come from a single page load. Vercel
+  // injects x-vercel-ip-country on all prod requests (absent locally,
+  // absent behind some self-hosted proxies — left null in that case).
   if (resolved.endsWith('.html') || resolved.endsWith('.htm')) {
     recordViewBestEffort({
       siteId: site.id,
@@ -119,6 +121,10 @@ export async function GET(
         req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
         req.headers.get('x-real-ip'),
       host: req.headers.get('host'),
+      country:
+        req.headers.get('x-vercel-ip-country') ??
+        req.headers.get('cf-ipcountry') ??
+        null,
     });
   }
 
