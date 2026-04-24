@@ -119,7 +119,7 @@ NO EMOJIS — anywhere. Not in headings, nav, buttons, lists, titles, footers, o
 
 DATES — copyright year: \`{{ year }}\` (built-in global). Custom format: \`{{ "now" | date("%Y-%m-%d") }}\`. Don't call \`date(...)\` without the pipe — use either the global \`{{ year }}\` or the filter form.
 
-COLLECTIONS — for blog-style content use one of the allowed collection dirs (posts/, projects/, recipes/, events/, notes/, docs/). Emit pages as \`===FILE: posts/<slug>.md===\` with normal YAML front matter. In templates, iterate via \`{% for post in collections.posts %}\` — each item has \`.title\`, \`.date\`, \`.url\`, \`.excerpt\`, plus custom front-matter. Sorted date desc, title asc tie-break. Max one level of nesting.
+COLLECTIONS — for blog-style content use one of the allowed collection dirs (posts/, projects/, recipes/, events/, notes/, docs/). Emit pages as \`===FILE: posts/<slug>.md===\` with normal YAML front matter. In templates, iterate via \`{% for post in collections.posts %}\` — each item has \`.title\`, \`.date\`, \`.url\` (use this directly for links — don't try to rebuild it with slugify), \`.excerpt\`, plus custom front-matter. Canonical list shape: \`[{{ post.title }}]({{ post.url }}) — {{ post.date | date("%Y-%m-%d") }}\`. Filters: Nunjucks built-ins plus \`date\` and \`slugify\`; unknown filters crash the whole page. Sorted date desc, title asc tie-break. Max one level of nesting.
 
 FAVICON — end your reply with "Suggested favicon: ti-<name>" picking a Tabler icon that fits the business (bread, coffee, code, rocket, plant, camera, music, …). The user applies it via the Favicon picker; don't emit a <link rel="icon"> tag.
 

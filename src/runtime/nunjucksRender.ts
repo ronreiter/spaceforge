@@ -108,6 +108,29 @@ export function createEnv(files: Record<string, string>): nunjucks.Environment {
   env.addFilter('format_date', dateFilter);
   env.addFilter('dateFormat', dateFilter);
 
+  // slugify — not a Nunjucks built-in, but every model's first
+  // instinct when it sees a title it wants in a URL. Registering it
+  // here means one unknown filter doesn't cause Nunjucks to throw
+  // and fall the entire page back to raw template syntax.
+  const slugify = (v: unknown): string =>
+    String(v ?? '')
+      .toLowerCase()
+      .normalize('NFKD')
+      .replace(/[̀-ͯ]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 80);
+  env.addFilter('slugify', slugify);
+  env.addFilter('slug', slugify);
+  env.addFilter('kebab', slugify);
+  env.addFilter('kebab_case', slugify);
+  env.addFilter('kebabCase', slugify);
+  env.addFilter('snake_case', (v: unknown) => slugify(v).replace(/-/g, '_'));
+  env.addFilter('snakeCase', (v: unknown) => slugify(v).replace(/-/g, '_'));
+  // Nunjucks' built-in `replace` takes regex strings with flags in the
+  // pattern; python-style `| replace("a", "b")` already works. No need
+  // to re-register.
+
   // Models trained on Jinja2 often reach for `date(...)` as a global
   // function instead of `| date(...)` as a filter — the classic
   // footer copyright is `© {{ date("now", "%Y") }}`. Register both

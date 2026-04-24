@@ -98,9 +98,16 @@ DATES IN TEMPLATES — for a copyright year in _footer.njk or anywhere else, use
 COLLECTIONS (blog-style content):
 - Pages under one of the allowed collection directories are grouped automatically: posts/, projects/, recipes/, events/, notes/, docs/.
 - Emit posts as \`===FILE: posts/my-post.md===\` with normal YAML front matter (title, date, layout).
-- In any layout or .md body, iterate with \`{% for post in collections.posts %}\`. Each item exposes: \`post.title\`, \`post.date\`, \`post.url\` (the output .html path), \`post.excerpt\` (first ~180 chars of the body), plus every custom front-matter field.
+- In any layout or .md body, iterate with \`{% for post in collections.posts %}\`. Each item exposes: \`post.title\`, \`post.date\`, \`post.url\` (the output .html path — already computed, use this), \`post.excerpt\` (first ~180 chars of the body), plus every custom front-matter field.
+- Canonical list-page markup (use this shape; do NOT try to rebuild the URL with slugify):
+    {% for post in collections.posts %}
+    - [{{ post.title }}]({{ post.url }}) — <em>{{ post.date | date("%Y-%m-%d") }}</em><br>{{ post.excerpt }}
+    {% else %}
+    No posts yet.
+    {% endfor %}
+- Available filters: Nunjucks built-ins (\`capitalize\`, \`truncate\`, \`upper\`, \`lower\`, \`length\`, \`join\`, \`default\`, \`replace\`, \`safe\`, \`trim\`, \`urlencode\`, …) plus \`date\`/\`strftime\` and \`slugify\`. Don't invent filters that aren't in that list — an unknown filter crashes the whole page.
 - Posts are pre-sorted by date desc; fallback order is title asc.
-- Link to an individual post via \`<a href="{{ post.url }}">\`. Use relative hrefs in _header.njk for collection index pages (e.g. \`<a href="posts/">Blog</a>\`).
+- Use relative hrefs in _header.njk for collection index pages (e.g. \`<a href="posts/">Blog</a>\`).
 - DO NOT nest deeper than one directory (\`posts/foo/bar.md\` is NOT supported). Keep collection pages one level deep.
 
 FAVICON — after writing the site, end your prose reply with a one-line suggestion like "Suggested favicon: ti-bread" picking an icon name from the Tabler set that matches the business (ti-bread for a bakery, ti-code for a dev tool, ti-coffee for a cafe, ti-rocket for tech/SaaS, ti-plant for wellness, ti-camera for a studio, ti-music for a band). The user applies it from the Favicon picker — don't write a <link rel="icon"> tag yourself.
