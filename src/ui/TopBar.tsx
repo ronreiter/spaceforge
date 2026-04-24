@@ -37,6 +37,7 @@ import { ModelSelector } from './ModelSelector';
 import { AppBrand } from './AppBrand';
 import { ShareSiteModal } from './ShareSiteModal';
 import { FaviconModal } from './FaviconModal';
+import { UserMenu } from './UserMenu';
 
 export type TopBarProps = {
   modelId: string;
@@ -63,6 +64,11 @@ export type TopBarProps = {
   // ms-since-epoch of the last acknowledged server save. null until the
   // first save completes.
   lastSavedAt?: number | null;
+  // Identity for the user menu (sign-out live in the same dropdown).
+  // Omitted in the localStorage-only/test embedding — the menu is
+  // simply not rendered.
+  user?: { email: string; name: string | null };
+  isDevAuth?: boolean;
 };
 
 type VersionSummary = {
@@ -272,6 +278,10 @@ export function TopBar(p: TopBarProps) {
             {dark ? <IconSun size={16} /> : <IconMoon size={16} />}
           </ActionIcon>
         </Tooltip>
+
+        {p.user && (
+          <UserMenu user={p.user} isDevAuth={!!p.isDevAuth} />
+        )}
 
         {hasSite &&
           (p.publishedAt ? (

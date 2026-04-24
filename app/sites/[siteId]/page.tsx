@@ -35,6 +35,8 @@ export default async function SitePage({
         access.site.publishedAt ? access.site.publishedAt.toISOString() : null
       }
       initialPublishedVersionId={access.site.publishedVersionId ?? null}
+      user={{ email: user.email, name: user.name }}
+      isDevAuth={isDevAuth()}
     />
   );
 }

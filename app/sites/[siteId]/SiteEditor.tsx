@@ -29,6 +29,8 @@ export function SiteEditor({
   role,
   initialPublishedAt,
   initialPublishedVersionId,
+  user,
+  isDevAuth,
 }: {
   siteId: string;
   siteName: string;
@@ -36,6 +38,8 @@ export function SiteEditor({
   role: 'owner' | 'admin' | 'editor' | 'viewer';
   initialPublishedAt: string | null;
   initialPublishedVersionId: string | null;
+  user: { email: string; name: string | null };
+  isDevAuth: boolean;
 }) {
   const [state, setState] = useState<PublishState>({
     publishedAt: initialPublishedAt,
@@ -115,6 +119,8 @@ export function SiteEditor({
         onPublish: publish,
         onUnpublish: unpublish,
         onVersionChanged,
+        user,
+        isDevAuth,
       }}
     />
   );
