@@ -1,6 +1,6 @@
 import MarkdownIt from 'markdown-it';
 import fm from 'front-matter';
-import { createEnv, outputPath } from './nunjucksRender';
+import { buildCollections, createEnv, outputPath } from './nunjucksRender';
 
 const md = new MarkdownIt({
   html: true,
@@ -139,10 +139,12 @@ export function renderMarkdownPage(
   const src = files[path] ?? '';
   const { data, body } = parseFrontMatter(src);
 
+  const collections = buildCollections(files);
   const preContext = {
     ...data,
     page: { path, url: outputPath(path) },
     site: siteContext,
+    collections,
   };
   const processedBody = preprocessBody(body, files, preContext);
   const content = renderMarkdown(processedBody);
@@ -154,6 +156,7 @@ export function renderMarkdownPage(
     content,
     page: { path, url: outputPath(path) },
     site: siteContext,
+    collections,
   };
 
   if (!(layoutName in files)) {

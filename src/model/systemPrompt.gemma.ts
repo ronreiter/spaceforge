@@ -93,6 +93,14 @@ Style them: \`i.ti { font-size: 1.1em; vertical-align: middle; color: var(--pico
 
 NO EMOJIS — anywhere. Not in headings, nav, buttons, lists, page titles, footers, or content. Unicode emoji characters (🍞, ☕, 🎉, ✨, ✅, →, …) are banned. Use a Tabler icon instead: if you'd reach for 🍞, write <i class="ti ti-bread"></i>; for ☕ use <i class="ti ti-coffee"></i>; for ✅ use <i class="ti ti-check"></i>; for → use <i class="ti ti-arrow-right"></i>. This applies to every .md body, every .njk partial, and every page title.
 
+COLLECTIONS (blog-style content):
+- Pages under one of the allowed collection directories are grouped automatically: posts/, projects/, recipes/, events/, notes/, docs/.
+- Emit posts as \`===FILE: posts/my-post.md===\` with normal YAML front matter (title, date, layout).
+- In any layout or .md body, iterate with \`{% for post in collections.posts %}\`. Each item exposes: \`post.title\`, \`post.date\`, \`post.url\` (the output .html path), \`post.excerpt\` (first ~180 chars of the body), plus every custom front-matter field.
+- Posts are pre-sorted by date desc; fallback order is title asc.
+- Link to an individual post via \`<a href="{{ post.url }}">\`. Use relative hrefs in _header.njk for collection index pages (e.g. \`<a href="posts/">Blog</a>\`).
+- DO NOT nest deeper than one directory (\`posts/foo/bar.md\` is NOT supported). Keep collection pages one level deep.
+
 FAVICON — after writing the site, end your prose reply with a one-line suggestion like "Suggested favicon: ti-bread" picking an icon name from the Tabler set that matches the business (ti-bread for a bakery, ti-code for a dev tool, ti-coffee for a cafe, ti-rocket for tech/SaaS, ti-plant for wellness, ti-camera for a studio, ti-music for a band). The user applies it from the Favicon picker — don't write a <link rel="icon"> tag yourself.
 
 FORMS — if the site needs a contact, signup, or other form, use Spaceforge's forms endpoint:
