@@ -281,8 +281,17 @@ function AppInnerBody({
         if (cancelled) return;
         setGenerator(g);
         setStatusKind('ready');
-        setStatus(`${entry.label} ready`);
+        setStatus(
+          g.warning
+            ? `${entry.label} ready (CPU fallback)`
+            : `${entry.label} ready`,
+        );
         setProgressPct(undefined);
+        if (g.warning) {
+          // Surface the fallback warning as a persistent status line
+          // so the user knows why tokens will come out slowly.
+          console.warn('[spaceforge]', g.warning);
+        }
         setDownloaded((s) => {
           if (s.has(modelId)) return s;
           const next = new Set(s);

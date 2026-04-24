@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^7.2.4",
-    "@huggingface/transformers": "^4.1.0",
+    "@huggingface/transformers": "^4.2.0",
     "@mantine/core": "^9.0.2",
     "@mantine/hooks": "^9.0.2",
     "@monaco-editor/react": "^4.7.0",
