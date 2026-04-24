@@ -107,6 +107,18 @@ export function createEnv(files: Record<string, string>): nunjucks.Environment {
   env.addFilter('formatDate', dateFilter);
   env.addFilter('format_date', dateFilter);
   env.addFilter('dateFormat', dateFilter);
+
+  // Models trained on Jinja2 often reach for `date(...)` as a global
+  // function instead of `| date(...)` as a filter — the classic
+  // footer copyright is `© {{ date("now", "%Y") }}`. Register both
+  // shapes so whichever the model picked just works.
+  env.addGlobal('date', (value: unknown, format?: string) =>
+    dateFilter(value, format),
+  );
+  // `{{ now() | date("%Y") }}` is another popular phrasing.
+  env.addGlobal('now', () => new Date());
+  // `{{ year }}` direct reference — the simplest possible copyright.
+  env.addGlobal('year', new Date().getFullYear());
   return env;
 }
 

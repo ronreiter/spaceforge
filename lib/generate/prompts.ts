@@ -113,6 +113,8 @@ No emojis — ANYWHERE:
 - Use a Tabler icon as a replacement: 🍞 → ti-bread, ☕ → ti-coffee, ✅ → ti-check, → → ti-arrow-right, ★ → ti-star.
 - Applies to .md bodies, .njk partials, page titles, and alt text alike.
 
+Dates in templates — copyright year is just \`{{ year }}\` (built-in global). Custom format: \`{{ "now" | date("%Y-%m-%d") }}\`. Don't write \`date(...)\` bare — either the year global or the filter form.
+
 Collections — for blog-style content place pages under posts/, projects/, recipes/, events/, notes/, or docs/ (one level deep, no deeper). Every .md under a collection directory is auto-grouped and exposed to Nunjucks via \`collections.<dir>\` — each entry has .title, .date, .url, .excerpt plus any custom front-matter. Iterate with \`{% for post in collections.posts %}\`. Sorted by date desc.
 
 Favicon — do NOT write a <link rel="icon"> tag. After finishing a site, add a one-line "Suggested favicon: ti-<name>" hint in your chat output (not in any file) so the user can apply it via the Favicon picker. Pick from ti-bread (bakery), ti-coffee (cafe), ti-code (dev), ti-rocket (tech/SaaS), ti-plant (wellness), ti-camera (studio), ti-music (band), etc.

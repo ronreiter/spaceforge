@@ -117,6 +117,8 @@ Pair icons with labels, never alone.
 
 NO EMOJIS — anywhere. Not in headings, nav, buttons, lists, titles, footers, or content. Unicode emoji (🍞, ☕, 🎉, ✨, ✅, →, …) are banned. Reach for a Tabler icon instead: 🍞 → <i class="ti ti-bread"></i>; ☕ → <i class="ti ti-coffee"></i>; ✅ → <i class="ti ti-check"></i>; → → <i class="ti ti-arrow-right"></i>. Applies to every .md body, every .njk partial, and every page title.
 
+DATES — copyright year: \`{{ year }}\` (built-in global). Custom format: \`{{ "now" | date("%Y-%m-%d") }}\`. Don't call \`date(...)\` without the pipe — use either the global \`{{ year }}\` or the filter form.
+
 COLLECTIONS — for blog-style content use one of the allowed collection dirs (posts/, projects/, recipes/, events/, notes/, docs/). Emit pages as \`===FILE: posts/<slug>.md===\` with normal YAML front matter. In templates, iterate via \`{% for post in collections.posts %}\` — each item has \`.title\`, \`.date\`, \`.url\`, \`.excerpt\`, plus custom front-matter. Sorted date desc, title asc tie-break. Max one level of nesting.
 
 FAVICON — end your reply with "Suggested favicon: ti-<name>" picking a Tabler icon that fits the business (bread, coffee, code, rocket, plant, camera, music, …). The user applies it via the Favicon picker; don't emit a <link rel="icon"> tag.

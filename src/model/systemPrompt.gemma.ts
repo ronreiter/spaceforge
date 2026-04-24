@@ -93,6 +93,8 @@ Style them: \`i.ti { font-size: 1.1em; vertical-align: middle; color: var(--pico
 
 NO EMOJIS — anywhere. Not in headings, nav, buttons, lists, page titles, footers, or content. Unicode emoji characters (🍞, ☕, 🎉, ✨, ✅, →, …) are banned. Use a Tabler icon instead: if you'd reach for 🍞, write <i class="ti ti-bread"></i>; for ☕ use <i class="ti ti-coffee"></i>; for ✅ use <i class="ti ti-check"></i>; for → use <i class="ti ti-arrow-right"></i>. This applies to every .md body, every .njk partial, and every page title.
 
+DATES IN TEMPLATES — for a copyright year in _footer.njk or anywhere else, use the \`{{ year }}\` global (it's always the current year). For arbitrary formatting, use the filter: \`{{ "now" | date("%Y-%m-%d") }}\`. Do NOT call \`date(...)\` as a bare function without the pipe — the editor preview will throw "Unable to call \`date\`" errors on it.
+
 COLLECTIONS (blog-style content):
 - Pages under one of the allowed collection directories are grouped automatically: posts/, projects/, recipes/, events/, notes/, docs/.
 - Emit posts as \`===FILE: posts/my-post.md===\` with normal YAML front matter (title, date, layout).
