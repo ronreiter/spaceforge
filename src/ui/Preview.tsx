@@ -8,6 +8,7 @@ import {
   Code,
   Stack,
   Box,
+  Loader,
 } from '@mantine/core';
 import {
   IconArrowLeft,
@@ -24,6 +25,9 @@ import {
 
 export type PreviewProps = {
   files: Record<string, string>;
+  /** When true, an overlay with a spinner and "Generating…" sits over the
+   *  rendered iframe (the browser-style header/nav above stays interactive). */
+  busy?: boolean;
 };
 
 function entryPath(files: Record<string, string>): string | null {
@@ -35,7 +39,7 @@ function entryPath(files: Record<string, string>): string | null {
   return null;
 }
 
-export function Preview({ files }: PreviewProps) {
+export function Preview({ files, busy }: PreviewProps) {
   const initial = entryPath(files) ?? 'index.html';
   const [history, setHistory] = useState<string[]>([initial]);
   const [cursor, setCursor] = useState(0);
@@ -170,13 +174,35 @@ export function Preview({ files }: PreviewProps) {
           />
         </form>
       </Group>
-      <Box style={{ flex: 1, background: '#fff' }}>
+      <Box style={{ flex: 1, position: 'relative', background: '#fff' }}>
         <iframe
           ref={iframeRef}
           sandbox="allow-scripts"
           style={{ width: '100%', height: '100%', border: 'none' }}
           title="Preview"
         />
+        {busy && (
+          <Box
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 20,
+              background: 'rgba(0, 0, 0, 0.55)',
+              backdropFilter: 'blur(2px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              pointerEvents: 'auto',
+            }}
+          >
+            <Stack gap="xs" align="center">
+              <Loader size="lg" color="var(--mantine-color-neon-3)" />
+              <Text fw={600} size="sm" c="white">
+                Generating…
+              </Text>
+            </Stack>
+          </Box>
+        )}
       </Box>
     </Stack>
   );

@@ -523,7 +523,6 @@ function AppInnerBody({
           </Box>
           <Box
             style={{
-              position: 'relative',
               flex: 1,
               display: 'flex',
               flexDirection: 'column',
@@ -531,28 +530,6 @@ function AppInnerBody({
               minHeight: 0,
             }}
           >
-            {busy && (
-              <Box
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  zIndex: 20,
-                  background: 'rgba(0, 0, 0, 0.55)',
-                  backdropFilter: 'blur(2px)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  pointerEvents: 'auto',
-                }}
-              >
-                <Stack gap="xs" align="center">
-                  <Loader size="lg" color="var(--mantine-color-neon-3)" />
-                  <Text fw={600} size="sm" c="white">
-                    Generating…
-                  </Text>
-                </Stack>
-              </Box>
-            )}
             <Tabs
               value={tab}
               onChange={(v) => v && setTab(v as 'preview' | 'edit' | 'templates')}
@@ -571,7 +548,7 @@ function AppInnerBody({
                 </Tabs.Tab>
               </Tabs.List>
               <Tabs.Panel value="preview" style={{ flex: 1, minHeight: 0 }}>
-                <Preview files={previewFiles} />
+                <Preview files={previewFiles} busy={busy} />
               </Tabs.Panel>
               <Tabs.Panel value="edit" style={{ flex: 1, minHeight: 0 }}>
                 <EditorView
