@@ -18,21 +18,16 @@ import {
 } from '@mantine/core';
 import {
   IconArrowLeft,
-  IconChartBar,
   IconCheck,
   IconChevronDown,
   IconEye,
-  IconForms,
   IconHistory,
-  IconPhoto,
   IconRocket,
   IconRocketOff,
-  IconShare,
   IconSun,
   IconMoon,
   IconTrash,
 } from '@tabler/icons-react';
-import Link from 'next/link';
 import { ModelSelector } from './ModelSelector';
 import { AppBrand } from './AppBrand';
 import { ShareSiteModal } from './ShareSiteModal';
@@ -279,10 +274,6 @@ export function TopBar(p: TopBarProps) {
           </ActionIcon>
         </Tooltip>
 
-        {p.user && (
-          <UserMenu user={p.user} isDevAuth={!!p.isDevAuth} />
-        )}
-
         {hasSite &&
           (p.publishedAt ? (
             <Badge size="xs" color="green">
@@ -300,58 +291,6 @@ export function TopBar(p: TopBarProps) {
                 View
               </Button>
             </Anchor>
-          </Tooltip>
-        )}
-        {hasSite && p.siteId && canWrite && (
-          <Tooltip label="Favicon">
-            <Button
-              variant="default"
-              size="xs"
-              leftSection={<IconPhoto size={14} />}
-              onClick={() => setFaviconOpen(true)}
-            >
-              Favicon
-            </Button>
-          </Tooltip>
-        )}
-        {hasSite && p.siteId && (
-          <Tooltip label="Analytics">
-            <Anchor component={Link} href={`/sites/${p.siteId}/analytics`} underline="never">
-              <Button
-                variant="default"
-                size="xs"
-                leftSection={<IconChartBar size={14} />}
-                component="span"
-              >
-                Analytics
-              </Button>
-            </Anchor>
-          </Tooltip>
-        )}
-        {hasSite && p.siteId && (
-          <Tooltip label="Form submissions">
-            <Anchor component={Link} href={`/sites/${p.siteId}/forms`} underline="never">
-              <Button
-                variant="default"
-                size="xs"
-                leftSection={<IconForms size={14} />}
-                component="span"
-              >
-                Forms
-              </Button>
-            </Anchor>
-          </Tooltip>
-        )}
-        {canShare && (
-          <Tooltip label="Share with others">
-            <Button
-              variant="default"
-              size="xs"
-              leftSection={<IconShare size={14} />}
-              onClick={() => setShareOpen(true)}
-            >
-              Share
-            </Button>
           </Tooltip>
         )}
         {hasSite && canWrite && (
@@ -375,6 +314,23 @@ export function TopBar(p: TopBarProps) {
           >
             Start fresh
           </Button>
+        )}
+
+        {p.user && (
+          <UserMenu
+            user={p.user}
+            isDevAuth={!!p.isDevAuth}
+            site={
+              hasSite && p.siteId
+                ? {
+                    siteId: p.siteId,
+                    role: p.role,
+                    onShare: canShare ? () => setShareOpen(true) : undefined,
+                    onFavicon: canWrite ? () => setFaviconOpen(true) : undefined,
+                  }
+                : undefined
+            }
+          />
         )}
       </Group>
     </Box>

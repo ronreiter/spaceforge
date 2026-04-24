@@ -19,6 +19,7 @@ import {
   IconCode,
   IconCpu,
   IconFileZip,
+  IconForms,
   IconLayoutGrid,
   IconMarkdown,
   IconPlayerPlay,
@@ -188,9 +189,9 @@ function Features() {
       body: 'Pico.css, Tabler icons, Google Fonts, and an Unsplash proxy are injected into every preview automatically. Sites look good before you touch styles.css.',
     },
     {
-      icon: IconTemplate,
-      title: 'Templates + agent loop',
-      body: 'A planner picks a template for your brief, an executor writes each file, a critic reviews. Keep iterating in chat or open any file in the Monaco editor.',
+      icon: IconForms,
+      title: 'Forms, built in',
+      body: 'Drop a <form> into any page and submissions land in your dashboard. Export to CSV, forward to a webhook, or get emailed on every new one — no backend to wire up.',
     },
     {
       icon: IconLayoutGrid,

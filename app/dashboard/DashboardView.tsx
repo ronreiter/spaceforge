@@ -33,6 +33,7 @@ import type { SiteSummary } from '../../lib/sites/service';
 import { useAlert, useConfirm } from '../../src/ui/dialogs';
 import { AppHeader } from '../../src/ui/AppHeader';
 import { ShareSiteModal } from '../../src/ui/ShareSiteModal';
+import { SiteOptionsMenu } from '../../src/ui/SiteOptionsMenu';
 
 export function DashboardView({
   user,
@@ -423,49 +424,17 @@ function SiteCard({
         <Badge size="xs" variant="light" color="gray">
           {site.role}
         </Badge>
-        <Group
-          gap={4}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {onShare && (site.role === 'owner' || site.role === 'admin') && (
-            <Tooltip label="Share" openDelay={200}>
-              <ActionIcon variant="subtle" onClick={onShare} aria-label="Share">
-                <IconShare size={14} />
-              </ActionIcon>
-            </Tooltip>
-          )}
-          {onClone && (
-            <Tooltip label="Duplicate site" openDelay={200}>
-              <ActionIcon variant="subtle" onClick={onClone} aria-label="Duplicate site">
-                <IconCopy size={14} />
-              </ActionIcon>
-            </Tooltip>
-          )}
-          {onDelete && (site.role === 'owner' || site.role === 'admin') && (
-            <Tooltip label="Move to trash" openDelay={200}>
-              <ActionIcon
-                variant="subtle"
-                color="red"
-                onClick={onDelete}
-                aria-label="Delete"
-              >
-                <IconTrash size={14} />
-              </ActionIcon>
-            </Tooltip>
-          )}
-          {onLeave && (
-            <Tooltip label="Leave site" openDelay={200}>
-              <ActionIcon
-                variant="subtle"
-                color="red"
-                onClick={onLeave}
-                aria-label="Leave site"
-              >
-                <IconLogout size={14} />
-              </ActionIcon>
-            </Tooltip>
-          )}
-        </Group>
+        <div onClick={(e) => e.stopPropagation()}>
+          <SiteOptionsMenu
+            siteId={site.id}
+            role={site.role}
+            size="sm"
+            onShare={onShare}
+            onClone={onClone}
+            onDelete={onDelete}
+            onLeave={onLeave}
+          />
+        </div>
       </Group>
     </Card>
   );
