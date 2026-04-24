@@ -21,6 +21,7 @@ import {
   Tooltip,
 } from '@mantine/core';
 import {
+  IconCopy,
   IconPlus,
   IconTrash,
   IconShare,
@@ -53,6 +54,45 @@ export function DashboardView({
 
   // Share modal state — opened per-site.
   const [shareSite, setShareSite] = useState<SiteSummary | null>(null);
+  // Clone modal state.
+  const [cloneSource, setCloneSource] = useState<SiteSummary | null>(null);
+  const [cloneSlug, setCloneSlug] = useState('');
+  const [cloneName, setCloneName] = useState('');
+  const [cloneError, setCloneError] = useState<string | null>(null);
+  const [cloning, setCloning] = useState(false);
+
+  function openClone(site: SiteSummary) {
+    setCloneSource(site);
+    setCloneSlug(`${site.slug}-copy`.slice(0, 50));
+    setCloneName(`${site.name} (copy)`);
+    setCloneError(null);
+  }
+
+  async function submitClone() {
+    if (!cloneSource) return;
+    setCloning(true);
+    setCloneError(null);
+    try {
+      const res = await fetch(`/api/sites/${cloneSource.id}/clone`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ slug: cloneSlug, name: cloneName }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        setCloneError(body?.error ?? `HTTP ${res.status}`);
+        return;
+      }
+      const body = (await res.json()) as { site: SiteSummary };
+      setSites((xs) => [body.site, ...xs]);
+      setCloneSource(null);
+      router.push(`/sites/${body.site.id}`);
+    } catch (err) {
+      setCloneError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setCloning(false);
+    }
+  }
 
   const { teamSites, sharedSites } = useMemo(() => {
     const team = sites.filter((s) => s.via === 'team');
@@ -204,6 +244,7 @@ export function DashboardView({
                     startTransition(() => router.push(`/sites/${s.id}`))
                   }
                   onShare={() => setShareSite(s)}
+                  onClone={() => openClone(s)}
                   onDelete={() => deleteSite(s.id)}
                 />
               ))}
@@ -223,6 +264,7 @@ export function DashboardView({
                     onOpen={() =>
                       startTransition(() => router.push(`/sites/${s.id}`))
                     }
+                    onClone={() => openClone(s)}
                     onLeave={() => leaveSite(s.id)}
                   />
                 ))}
@@ -236,6 +278,51 @@ export function DashboardView({
         site={shareSite}
         onClose={() => setShareSite(null)}
       />
+
+      <Modal
+        opened={!!cloneSource}
+        onClose={() => setCloneSource(null)}
+        title={cloneSource ? `Duplicate "${cloneSource.name}"` : 'Duplicate site'}
+        centered
+      >
+        <Stack>
+          <Text size="xs" c="dimmed">
+            The new site is a fresh draft in your team. Files are copied;
+            published versions, chat history, collaborators, and custom
+            domains are not.
+          </Text>
+          <TextInput
+            label="Name"
+            value={cloneName}
+            onChange={(e) => setCloneName(e.currentTarget.value)}
+            required
+          />
+          <TextInput
+            label="Slug"
+            description="Shown in the URL: /s/<slug>. Must be unique."
+            value={cloneSlug}
+            onChange={(e) => setCloneSlug(e.currentTarget.value)}
+            required
+          />
+          {cloneError && (
+            <Text c="red" size="sm">
+              {cloneError}
+            </Text>
+          )}
+          <Group justify="flex-end">
+            <Button variant="default" onClick={() => setCloneSource(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={submitClone}
+              loading={cloning}
+              leftSection={<IconCopy size={14} />}
+            >
+              Duplicate
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
 
       <Modal
         opened={open}
@@ -282,12 +369,14 @@ function SiteCard({
   site,
   onOpen,
   onShare,
+  onClone,
   onDelete,
   onLeave,
 }: {
   site: SiteSummary;
   onOpen: () => void;
   onShare?: () => void;
+  onClone?: () => void;
   onDelete?: () => void;
   onLeave?: () => void;
 }) {
@@ -342,6 +431,13 @@ function SiteCard({
             <Tooltip label="Share" openDelay={200}>
               <ActionIcon variant="subtle" onClick={onShare} aria-label="Share">
                 <IconShare size={14} />
+              </ActionIcon>
+            </Tooltip>
+          )}
+          {onClone && (
+            <Tooltip label="Duplicate site" openDelay={200}>
+              <ActionIcon variant="subtle" onClick={onClone} aria-label="Duplicate site">
+                <IconCopy size={14} />
               </ActionIcon>
             </Tooltip>
           )}
