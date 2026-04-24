@@ -19,9 +19,9 @@ import {
 import {
   IconArrowLeft,
   IconCheck,
-  IconClock,
-  IconDownload,
+  IconChevronDown,
   IconEye,
+  IconHistory,
   IconRocket,
   IconRocketOff,
   IconSun,
@@ -39,7 +39,6 @@ export type TopBarProps = {
   statusKind: 'loading' | 'ready' | 'error';
   progressPct?: number;
   onStartFresh: () => void;
-  onDownloadZip: () => void;
   // Multi-tenant site context (optional — only set at /sites/:id):
   dashboardHref?: string;
   siteId?: string;
@@ -182,7 +181,7 @@ export function TopBar(p: TopBarProps) {
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  maxWidth: 220,
+                  maxWidth: 320,
                 }}
               >
                 {p.siteName}
@@ -195,7 +194,7 @@ export function TopBar(p: TopBarProps) {
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  maxWidth: 220,
+                  maxWidth: 320,
                 }}
               >
                 /s/{p.siteSlug}
@@ -252,16 +251,6 @@ export function TopBar(p: TopBarProps) {
           </ActionIcon>
         </Tooltip>
 
-        <Tooltip label="Download .zip">
-          <ActionIcon
-            variant="default"
-            size="lg"
-            onClick={p.onDownloadZip}
-            aria-label="Download .zip"
-          >
-            <IconDownload size={16} />
-          </ActionIcon>
-        </Tooltip>
         {hasSite && p.publishedAt && (
           <Tooltip label="Open published site">
             <Anchor href={`/s/${p.siteSlug}/`} target="_blank" rel="noopener">
@@ -270,26 +259,6 @@ export function TopBar(p: TopBarProps) {
               </Button>
             </Anchor>
           </Tooltip>
-        )}
-        {hasSite && p.siteId && p.publishedAt && (
-          <VersionHistoryMenu
-            siteId={p.siteId}
-            publishedVersionId={p.publishedVersionId ?? null}
-            canActivate={canWrite}
-            onVersionChanged={p.onVersionChanged}
-          />
-        )}
-        {hasSite && canWrite && p.publishedAt && (
-          <Button
-            variant="light"
-            color="red"
-            size="xs"
-            leftSection={<IconRocketOff size={14} />}
-            onClick={p.onUnpublish}
-            loading={p.publishing}
-          >
-            Unpublish
-          </Button>
         )}
         {hasSite &&
           (p.publishedAt ? (
@@ -302,14 +271,15 @@ export function TopBar(p: TopBarProps) {
             </Badge>
           ))}
         {hasSite && canWrite && (
-          <Button
-            size="xs"
-            leftSection={<IconRocket size={14} />}
-            onClick={p.onPublish}
-            loading={p.publishing}
-          >
-            {p.publishedAt ? 'Republish' : 'Publish'}
-          </Button>
+          <PublishSplitButton
+            siteId={p.siteId ?? null}
+            publishedAt={p.publishedAt ?? null}
+            publishedVersionId={p.publishedVersionId ?? null}
+            publishing={!!p.publishing}
+            onPublish={p.onPublish}
+            onUnpublish={p.onUnpublish}
+            onVersionChanged={p.onVersionChanged}
+          />
         )}
         {!hasSite && (
           <Button
@@ -327,29 +297,109 @@ export function TopBar(p: TopBarProps) {
   );
 }
 
-// Version history popover: latest N publishes with a one-click
-// "activate" button that pivots sites.published_version_id. Artifacts
-// are immutable in Blob so this is just a DB pointer swap — no
-// re-render, no new uploads.
-function VersionHistoryMenu({
+// Split button: the primary action is Publish / Republish; clicking the
+// chevron on the right opens a dropdown with Unpublish + the most recent
+// publish versions (one-click activate to roll back or forward).
+//
+// A single combined control keeps the top-bar dense and gives the user
+// one place to find everything publish-related instead of three
+// neighbouring buttons.
+function PublishSplitButton({
+  siteId,
+  publishedAt,
+  publishedVersionId,
+  publishing,
+  onPublish,
+  onUnpublish,
+  onVersionChanged,
+}: {
+  siteId: string | null;
+  publishedAt: string | null;
+  publishedVersionId: string | null;
+  publishing: boolean;
+  onPublish?: () => void;
+  onUnpublish?: () => void;
+  onVersionChanged?: (publishedAt: string, versionId: string) => void;
+}) {
+  const hasPublished = !!publishedAt;
+  const label = hasPublished ? 'Republish' : 'Publish';
+  return (
+    <Button.Group>
+      <Button
+        size="xs"
+        leftSection={<IconRocket size={14} />}
+        onClick={onPublish}
+        loading={publishing}
+      >
+        {label}
+      </Button>
+      <Menu position="bottom-end" shadow="md" width={320} closeOnItemClick={false}>
+        <Menu.Target>
+          <Button
+            size="xs"
+            px={6}
+            aria-label={`${label} options`}
+            disabled={publishing}
+          >
+            <IconChevronDown size={14} />
+          </Button>
+        </Menu.Target>
+        <Menu.Dropdown>
+          {hasPublished && onUnpublish && (
+            <Menu.Item
+              color="red"
+              leftSection={<IconRocketOff size={14} />}
+              onClick={onUnpublish}
+              closeMenuOnClick
+            >
+              Unpublish
+            </Menu.Item>
+          )}
+          {hasPublished && onUnpublish && <Menu.Divider />}
+          <Menu.Label>
+            <Group gap={6} wrap="nowrap">
+              <IconHistory size={12} />
+              <Text size="xs">Version history</Text>
+            </Group>
+          </Menu.Label>
+          {siteId && hasPublished ? (
+            <VersionHistoryInline
+              siteId={siteId}
+              publishedVersionId={publishedVersionId}
+              onVersionChanged={onVersionChanged}
+            />
+          ) : (
+            <Menu.Item disabled>
+              <Text size="xs" c="dimmed">
+                Publish to start tracking versions.
+              </Text>
+            </Menu.Item>
+          )}
+        </Menu.Dropdown>
+      </Menu>
+    </Button.Group>
+  );
+}
+
+// Body of the version-history dropdown: lazily fetches on first mount,
+// one-click activate flips sites.published_version_id. Artifacts are
+// immutable in Blob so this is just a DB pointer swap — no re-render,
+// no new uploads.
+function VersionHistoryInline({
   siteId,
   publishedVersionId,
-  canActivate,
   onVersionChanged,
 }: {
   siteId: string;
   publishedVersionId: string | null;
-  canActivate: boolean;
   onVersionChanged?: (publishedAt: string, versionId: string) => void;
 }) {
-  const [opened, setOpened] = useState(false);
   const [versions, setVersions] = useState<VersionSummary[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activating, setActivating] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!opened) return;
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -368,7 +418,7 @@ function VersionHistoryMenu({
     return () => {
       cancelled = true;
     };
-  }, [opened, siteId, publishedVersionId]);
+  }, [siteId, publishedVersionId]);
 
   async function activate(versionId: string) {
     setActivating(versionId);
@@ -394,81 +444,60 @@ function VersionHistoryMenu({
     }
   }
 
+  if (loading) {
+    return (
+      <Menu.Item disabled>
+        <Text size="xs" c="dimmed">Loading…</Text>
+      </Menu.Item>
+    );
+  }
+  if (error) {
+    return (
+      <Menu.Item disabled>
+        <Text size="xs" c="red">{error}</Text>
+      </Menu.Item>
+    );
+  }
+  if (versions.length === 0) {
+    return (
+      <Menu.Item disabled>
+        <Text size="xs" c="dimmed">No published versions yet.</Text>
+      </Menu.Item>
+    );
+  }
   return (
-    <Menu
-      opened={opened}
-      onChange={setOpened}
-      position="bottom-end"
-      shadow="md"
-      width={320}
-      closeOnItemClick={false}
-    >
-      <Menu.Target>
-        <Tooltip label="Version history">
-          <ActionIcon variant="default" size="lg" aria-label="Version history">
-            <IconClock size={16} />
-          </ActionIcon>
-        </Tooltip>
-      </Menu.Target>
-      <Menu.Dropdown>
-        <Menu.Label>Recent publishes</Menu.Label>
-        {loading && (
-          <Menu.Item disabled>
-            <Text size="xs" c="dimmed">
-              Loading…
-            </Text>
-          </Menu.Item>
-        )}
-        {error && (
-          <Menu.Item disabled>
-            <Text size="xs" c="red">
-              {error}
-            </Text>
-          </Menu.Item>
-        )}
-        {!loading && !error && versions.length === 0 && (
-          <Menu.Item disabled>
-            <Text size="xs" c="dimmed">
-              No published versions yet.
-            </Text>
-          </Menu.Item>
-        )}
-        {versions.slice(0, 10).map((v) => (
-          <Menu.Item key={v.id} closeMenuOnClick={false} component="div">
-            <Group justify="space-between" wrap="nowrap" gap="xs">
-              <Stack gap={0} style={{ minWidth: 0 }}>
-                <Group gap={6} wrap="nowrap">
-                  <Text size="xs" fw={500}>
-                    {formatTimeAgo(v.publishedAt)}
-                  </Text>
-                  {v.isCurrent && (
-                    <Badge
-                      size="xs"
-                      color="green"
-                      leftSection={<IconCheck size={8} />}
-                    >
-                      live
-                    </Badge>
-                  )}
-                </Group>
-                <Text size="xs" c="dimmed">
-                  {v.artifactCount} files · {formatBytes(v.totalBytes)}
+    <>
+      {versions.slice(0, 10).map((v) => (
+        <Menu.Item key={v.id} closeMenuOnClick={false} component="div">
+          <Group justify="space-between" wrap="nowrap" gap="xs">
+            <Stack gap={0} style={{ minWidth: 0 }}>
+              <Group gap={6} wrap="nowrap">
+                <Text size="xs" fw={500}>
+                  {formatTimeAgo(v.publishedAt)}
                 </Text>
-              </Stack>
-              {canActivate && !v.isCurrent && (
-                <Button
-                  size="xs"
-                  variant="light"
-                  loading={activating === v.id}
-                  onClick={() => activate(v.id)}
-                >
-                  Activate
-                </Button>
-              )}
-            </Group>
-          </Menu.Item>
-        ))}
-      </Menu.Dropdown>
-    </Menu>
+                {v.isCurrent && (
+                  <Badge size="xs" color="green" leftSection={<IconCheck size={8} />}>
+                    live
+                  </Badge>
+                )}
+              </Group>
+              <Text size="xs" c="dimmed">
+                {v.artifactCount} files · {formatBytes(v.totalBytes)}
+              </Text>
+            </Stack>
+            {!v.isCurrent && (
+              <Button
+                size="xs"
+                variant="light"
+                loading={activating === v.id}
+                onClick={() => activate(v.id)}
+              >
+                Activate
+              </Button>
+            )}
+          </Group>
+        </Menu.Item>
+      ))}
+    </>
   );
 }
