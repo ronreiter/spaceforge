@@ -18,14 +18,15 @@ import {
   IconBrain,
   IconCode,
   IconCpu,
-  IconDownload,
   IconFileZip,
-  IconPhoto,
+  IconLayoutGrid,
+  IconMarkdown,
   IconPlayerPlay,
   IconRocket,
   IconShield,
   IconSparkles,
   IconTemplate,
+  IconWorld,
 } from '@tabler/icons-react';
 import { getCurrentUser } from '../lib/auth';
 
@@ -192,14 +193,14 @@ function Features() {
       body: 'A planner picks a template for your brief, an executor writes each file, a critic reviews. Keep iterating in chat or open any file in the Monaco editor.',
     },
     {
-      icon: IconPhoto,
-      title: 'Real photography',
-      body: 'The Unsplash proxy fetches real stock photos at build time — no watermark placeholders, no generic gradients. Your site looks alive from the first render.',
+      icon: IconLayoutGrid,
+      title: 'Template gallery',
+      body: 'Sixteen hand-crafted styles — editorial, brutalist, riviera, vault, synthwave, paper, and more. The agent picks the best match for your brief; swap any time without losing your content.',
     },
     {
-      icon: IconCode,
-      title: 'Open protocol',
-      body: 'The model emits files in a simple ===FILE: path=== / ===END=== block. Anyone can plug in a different model or write their own renderer. The format is the contract.',
+      icon: IconWorld,
+      title: 'Your own domain',
+      body: 'Publish to /s/<slug> or point your own domain at the site with a single DNS record. Multi-domain per site, zero config to add one; TLS terminates at the platform.',
     },
   ];
 
@@ -331,20 +332,30 @@ function Protocol() {
               Under the hood
             </Text>
             <Title order={2} fz={{ base: 28, sm: 36 }} fw={700} lh={1.15}>
-              A file protocol simple enough to read out loud.
+              It's Markdown all the way down.
             </Title>
             <Text size="sm" c="gray.4" lh={1.6}>
-              The model emits delimited blocks. A streaming parser writes each
-              completed file into browser storage and re-renders the preview.
-              There's no bundler, no framework scaffolding, no proprietary
-              state — just files on disk.
+              Every page in a Spaceforge site is a plain Markdown file with a
+              YAML front matter header. Layouts are Nunjucks partials the
+              template picks up. That's the entire contract — no bundler, no
+              framework scaffolding, no proprietary state. Open any file in
+              the editor or hand-write it yourself; it renders the same way.
+            </Text>
+            <Text size="sm" c="gray.4" lh={1.6}>
+              Pick a starting point from the{' '}
+              <Text span fw={600} c="gray.2">
+                template gallery
+              </Text>{' '}
+              — sixteen hand-crafted looks from editorial to synthwave. The
+              gallery is a set of layouts + styles.css bundles that overlay
+              your Markdown; switching templates keeps every post and page
+              exactly where you wrote them.
             </Text>
             <Stack gap={6} mt="sm">
-              <StackBullet icon={IconCpu} label="transformers.js + WebGPU" />
-              <StackBullet icon={IconTemplate} label="Markdown + Nunjucks (11ty-style)" />
-              <StackBullet icon={IconPhoto} label="Server-side Unsplash proxy" />
-              <StackBullet icon={IconDownload} label="JSZip for zip export" />
-              <StackBullet icon={IconRocket} label="Next.js + Mantine + Vercel Blob" />
+              <StackBullet icon={IconCpu} label="transformers.js + WebGPU (runs in your browser)" />
+              <StackBullet icon={IconMarkdown} label="Markdown pages with YAML front matter" />
+              <StackBullet icon={IconLayoutGrid} label="16 template bundles in the gallery" />
+              <StackBullet icon={IconTemplate} label="Nunjucks layouts (11ty-style)" />
             </Stack>
           </Stack>
 
@@ -356,28 +367,31 @@ function Protocol() {
             style={{ borderColor: 'var(--mantine-color-dark-5)' }}
           >
             <Text size="xs" c="dimmed" mb="xs" ff="monospace">
-              Wire format — one response
+              posts/hello-world.md
             </Text>
             <Code block bg="transparent" c="gray.0" style={{ fontSize: 13 }}>
-{`===FILE: index.md===
----
+{`---
 layout: _layout.njk
-title: Sprout — Smart Plant Care
+title: Our spring menu is here
+date: 2026-04-12
+tags: [menu, seasonal]
 ---
-# Your plants, remembered
-Welcome to Sprout. We log every watering,
-schedule the next one, and nudge you when
-the light is wrong.
-===END===
 
-===FILE: _header.njk===
-<header>
-  <a class="brand" href="index.html">
-    <i class="ti ti-plant"></i> Sprout
-  </a>
-  <nav>…</nav>
-</header>
-===END===`}
+# Our spring menu is here
+
+Fresh asparagus is finally back at the market, so
+the menu tilts green for the next six weeks.
+
+![A tray of grilled asparagus](/api/photo?q=asparagus,grilled&seed=3&w=1200&h=500)
+
+## What's new
+
+- **Asparagus fritters** with lemon aioli
+- **Pea-and-mint risotto**, finished with pecorino
+- A nettle soup that sounds like a dare, tastes like
+  spring rain
+
+See you Saturday.`}
             </Code>
           </Card>
         </SimpleGrid>
