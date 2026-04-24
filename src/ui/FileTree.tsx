@@ -33,6 +33,10 @@ export type FileTreeProps = {
   onSelect: (path: string) => void;
   onFileCreate: (path: string, contents: string) => void;
   onFileDelete: (path: string) => void;
+  /** Bundle + download the whole site as a .zip. Rendered below the
+   *  "New file" button when provided; useful for viewers too so the
+   *  action stays visible regardless of readOnly. */
+  onDownloadZip?: () => void;
   // When true: hides New-file button, hides Delete-file button on rows.
   readOnly?: boolean;
 };
@@ -81,6 +85,7 @@ export function FileTree({
   onSelect,
   onFileCreate,
   onFileDelete,
+  onDownloadZip,
   readOnly,
 }: FileTreeProps) {
   const [rootOpen, setRootOpen] = useState(true);
@@ -141,20 +146,35 @@ export function FileTree({
       gap={0}
       style={{ borderRight: '1px solid var(--mantine-color-default-border)' }}
     >
-      {!readOnly && (
+      {(!readOnly || onDownloadZip) && (
         <Box
           p="xs"
           style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}
         >
-          <Button
-            size="xs"
-            variant="light"
-            leftSection={<IconFilePlus size={14} />}
-            onClick={onNewFile}
-            fullWidth
-          >
-            New file
-          </Button>
+          <Stack gap={6}>
+            {!readOnly && (
+              <Button
+                size="xs"
+                variant="light"
+                leftSection={<IconFilePlus size={14} />}
+                onClick={onNewFile}
+                fullWidth
+              >
+                New file
+              </Button>
+            )}
+            {onDownloadZip && (
+              <Button
+                size="xs"
+                variant="default"
+                leftSection={<IconDownload size={14} />}
+                onClick={onDownloadZip}
+                fullWidth
+              >
+                Download .zip
+              </Button>
+            )}
+          </Stack>
         </Box>
       )}
       <ScrollArea style={{ flex: 1 }} type="auto">

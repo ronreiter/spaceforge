@@ -17,15 +17,11 @@ import {
   Tooltip,
   SimpleGrid,
 } from '@mantine/core';
-import {
-  IconArrowLeft,
-  IconRefresh,
-  IconTrash,
-  IconWorld,
-} from '@tabler/icons-react';
+import { IconRefresh, IconTrash } from '@tabler/icons-react';
 import type { AuthedUser } from '../../../lib/auth/types';
 import type { SiteSummary } from '../../../lib/sites/service';
 import { useAlert, useConfirm } from '../../../src/ui/dialogs';
+import { AppHeader } from '../../../src/ui/AppHeader';
 
 export function TrashView({
   user,
@@ -84,30 +80,11 @@ export function TrashView({
 
   return (
     <AppShell header={{ height: 56 }} padding="md">
-      <AppShell.Header>
-        <Container size="xl" h="100%">
-          <Group h="100%" justify="space-between" wrap="nowrap">
-            <Group gap="sm" wrap="nowrap">
-              <Tooltip label="Back to dashboard">
-                <Anchor component={Link} href="/dashboard" c="dimmed">
-                  <Group gap={4} wrap="nowrap">
-                    <IconArrowLeft size={14} />
-                    <Text size="xs">Dashboard</Text>
-                  </Group>
-                </Anchor>
-              </Tooltip>
-              <IconWorld size={20} />
-              <Title order={4}>Spaceforge</Title>
-              <Badge size="sm" variant="light" color="gray">
-                Trash
-              </Badge>
-            </Group>
-            <Text size="sm" c="dimmed">
-              {user.email}
-            </Text>
-          </Group>
-        </Container>
-      </AppShell.Header>
+      <AppHeader
+        user={user}
+        showBackToDashboard
+        badge={{ label: 'Trash' }}
+      />
 
       <AppShell.Main>
         <Container size="xl">

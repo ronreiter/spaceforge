@@ -481,7 +481,6 @@ function AppInnerBody({
           status={status}
           statusKind={statusKind}
           progressPct={progressPct}
-          onDownloadZip={onDownloadZip}
           onStartFresh={onStartFresh}
           dashboardHref={chrome?.dashboardHref}
           siteId={chrome?.siteId}
@@ -558,6 +557,7 @@ function AppInnerBody({
                   onFileChange={onFileChange}
                   onFileCreate={onFileCreate}
                   onFileDelete={onFileDelete}
+                  onDownloadZip={onDownloadZip}
                   readOnly={readOnly}
                 />
               </Tabs.Panel>

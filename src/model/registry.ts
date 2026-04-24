@@ -14,20 +14,13 @@ export type ModelEntry = {
 // Only keep models confirmed to publish ONNX weights with
 // WebGPU-compatible quantization.
 export const MODELS: ModelEntry[] = [
-  // Gemma — instruction-tuned, general-purpose. E* are the newest
-  // "effective" (sparse) variants; plain 3/3n are Google's prior tier.
-  {
-    id: 'onnx-community/gemma-4-E2B-it-ONNX',
-    label: 'Gemma 4 E2B (default)',
-    sizeGB: 2.0,
-    ramGB: 3,
-    dtype: 'q4f16',
-    family: 'gemma',
-    group: 'Gemma',
-  },
+  // Gemma 4 — instruction-tuned, general-purpose. E* are the "effective"
+  // (sparse) variants; E4B produced the cleanest multi-file sites in our
+  // local model bake-off so it's the default. The older 3/3n family was
+  // removed once E4B/E2B proved reliable.
   {
     id: 'onnx-community/gemma-4-E4B-it-ONNX',
-    label: 'Gemma 4 E4B',
+    label: 'Gemma 4 E4B (default)',
     sizeGB: 4.5,
     ramGB: 6,
     dtype: 'q4f16',
@@ -35,37 +28,10 @@ export const MODELS: ModelEntry[] = [
     group: 'Gemma',
   },
   {
-    id: 'onnx-community/gemma-3n-E2B-it-ONNX',
-    label: 'Gemma 3n E2B',
+    id: 'onnx-community/gemma-4-E2B-it-ONNX',
+    label: 'Gemma 4 E2B (smaller)',
     sizeGB: 2.0,
     ramGB: 3,
-    dtype: 'q4f16',
-    family: 'gemma',
-    group: 'Gemma',
-  },
-  {
-    id: 'onnx-community/gemma-3-4b-it-ONNX',
-    label: 'Gemma 3 4B',
-    sizeGB: 2.5,
-    ramGB: 4,
-    dtype: 'q4f16',
-    family: 'gemma',
-    group: 'Gemma',
-  },
-  {
-    id: 'onnx-community/gemma-3-1b-it-ONNX',
-    label: 'Gemma 3 1B',
-    sizeGB: 0.7,
-    ramGB: 1.5,
-    dtype: 'q4f16',
-    family: 'gemma',
-    group: 'Gemma',
-  },
-  {
-    id: 'onnx-community/gemma-3-270m-it-ONNX',
-    label: 'Gemma 3 270M (tiny)',
-    sizeGB: 0.2,
-    ramGB: 0.5,
     dtype: 'q4f16',
     family: 'gemma',
     group: 'Gemma',

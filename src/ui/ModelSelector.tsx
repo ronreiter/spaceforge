@@ -34,7 +34,7 @@ export function ModelSelector({ value, downloaded, onChange }: ModelSelectorProp
       leftSection={<IconCpu size={14} />}
       allowDeselect={false}
       searchable={false}
-      w={320}
+      w={300}
       size="xs"
     />
   );
