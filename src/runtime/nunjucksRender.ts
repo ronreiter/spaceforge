@@ -1,5 +1,5 @@
 import nunjucks from 'nunjucks';
-import fm from 'front-matter';
+import { parseFrontMatter } from './frontMatter';
 
 // Small models frequently mix up Liquid-style filter syntax (`{{ x | filter:
 // "arg" }}`) with Nunjucks's native parenthesised form (`{{ x | filter("arg")
@@ -173,21 +173,21 @@ export function buildCollections(files: Record<string, string>): Record<
     if (base === 'index.md') continue;
     const dir = path.slice(0, slashIdx);
 
-    let data: Record<string, unknown> = {};
-    let body = src;
-    try {
-      const parsed = fm<Record<string, unknown>>(src);
-      data = parsed.attributes ?? {};
-      body = parsed.body;
-    } catch {
-      // Malformed front matter — treat the whole thing as body. The
-      // editor's markdownRender.parseFrontMatter already handles this
-      // case too; we don't want a bad page to drop the whole
-      // collection.
-    }
+    // Use the lenient shared parser — it strips the --- header even
+    // when the YAML itself fails (e.g. an unquoted colon in the
+    // title), so the excerpt never ends up full of raw front-matter
+    // lines.
+    const { data, body } = parseFrontMatter(src);
 
     const excerpt = body
-      .replace(/^#.*$/m, '')
+      // Drop the leading heading line (models almost always open with #).
+      .replace(/^\s*#[^\n]*\n/, '')
+      // Drop markdown images — not useful in a text excerpt.
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+      // Drop raw HTML tags (models often open a post with a hero <img>).
+      .replace(/<[^>]+>/g, '')
+      // Collapse whitespace runs (blank lines, double spaces) to one space.
+      .replace(/\s+/g, ' ')
       .trim()
       .slice(0, 180);
     const url = outputPath(path);
