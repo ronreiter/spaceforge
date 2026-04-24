@@ -31,7 +31,14 @@ describe('isAllowedPath', () => {
     ['notes.md', true],
     ['readme.txt', true],
     ['hack.php', false],
-    ['photo.jpg', false],
+    // User-uploaded image assets are now allowed — asset-uploads feature.
+    ['photo.jpg', true],
+    ['photo.png', true],
+    ['photo.gif', true],
+    ['photo.webp', true],
+    ['icon.ico', true],
+    ['photo.jpeg', true],
+    ['photo.avif', true],
     ['no-ext', false],
   ])('%s -> %s', (path, expected) => {
     expect(isAllowedPath(path)).toBe(expected);

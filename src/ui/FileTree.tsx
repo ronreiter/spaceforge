@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Stack,
   Group,
@@ -23,6 +23,7 @@ import {
   IconFilePlus,
   IconDownload,
   IconTrash,
+  IconUpload,
 } from '@tabler/icons-react';
 import { triggerDownload } from '../storage/zip';
 import { useAlert, useConfirm, usePrompt } from './dialogs';
@@ -37,6 +38,9 @@ export type FileTreeProps = {
    *  "New file" button when provided; useful for viewers too so the
    *  action stays visible regardless of readOnly. */
   onDownloadZip?: () => void;
+  /** Upload image assets (png/jpg/gif/webp/avif/svg/ico). Parent owns
+   *  the fetch call so it can refresh its file list afterwards. */
+  onUploadAssets?: (files: File[]) => Promise<void>;
   // When true: hides New-file button, hides Delete-file button on rows.
   readOnly?: boolean;
 };
@@ -86,9 +90,28 @@ export function FileTree({
   onFileCreate,
   onFileDelete,
   onDownloadZip,
+  onUploadAssets,
   readOnly,
 }: FileTreeProps) {
   const [rootOpen, setRootOpen] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  async function handleUpload(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0 || !onUploadAssets) return;
+    setUploading(true);
+    try {
+      await onUploadAssets(Array.from(fileList));
+    } catch (e) {
+      await alertDialog({
+        title: 'Upload failed',
+        message: e instanceof Error ? e.message : String(e),
+      });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  }
   const paths = sortPaths(Object.keys(files));
   const confirmDialog = useConfirm();
   const alertDialog = useAlert();
@@ -162,6 +185,28 @@ export function FileTree({
               >
                 New file
               </Button>
+            )}
+            {!readOnly && onUploadAssets && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp,image/avif,image/svg+xml,image/x-icon"
+                  multiple
+                  hidden
+                  onChange={(e) => handleUpload(e.target.files)}
+                />
+                <Button
+                  size="xs"
+                  variant="default"
+                  leftSection={<IconUpload size={14} />}
+                  onClick={() => fileInputRef.current?.click()}
+                  loading={uploading}
+                  fullWidth
+                >
+                  Upload image
+                </Button>
+              </>
             )}
             {onDownloadZip && (
               <Button

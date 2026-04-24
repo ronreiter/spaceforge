@@ -12,6 +12,7 @@ import { overlayFiles, CUSTOM_TEMPLATE_ID } from '../../src/templates/registry';
 import { injectFrameworkServer } from './injectFramework';
 import type { AuthedUser } from '../auth/types';
 import { getSiteAccess, roleAtLeast } from '../sites/service';
+import { isBinaryPath } from '../../src/storage/paths';
 
 // Compiles a site's draft into an immutable public artifact set under
 // pub/<slug>/<version-id>/<path>. Reuses the exact same render
@@ -65,22 +66,30 @@ function contentTypeForPath(path: string): string {
   return 'application/octet-stream';
 }
 
-// Load the current draft as a Record<path, content> — the shape the
-// existing renderers expect.
-async function loadDraftFiles(
-  siteId: string,
-): Promise<Record<string, string>> {
+// Load the current draft split into text files (for renderers that
+// want strings) and binary assets (copied as-is at publish time).
+// Text renderers only see the text map; the binary map is iterated
+// separately during publish so image bytes never touch TextDecoder.
+async function loadDraftFiles(siteId: string): Promise<{
+  text: Record<string, string>;
+  binary: Record<string, Uint8Array>;
+}> {
   const rows = await db
     .select()
     .from(schema.siteFiles)
     .where(eq(schema.siteFiles.siteId, siteId));
   const blob = getBlobDriver();
-  const out: Record<string, string> = {};
+  const text: Record<string, string> = {};
+  const binary: Record<string, Uint8Array> = {};
   for (const row of rows) {
     const bytes = await blob.get(row.blobKey);
-    out[row.path] = new TextDecoder('utf-8').decode(bytes);
+    if (isBinaryPath(row.path)) {
+      binary[row.path] = bytes;
+    } else {
+      text[row.path] = new TextDecoder('utf-8').decode(bytes);
+    }
   }
-  return out;
+  return { text, binary };
 }
 
 export async function publishSite(
@@ -93,7 +102,7 @@ export async function publishSite(
     throw new PublishError('Read-only access — cannot publish.');
   }
 
-  const draft = await loadDraftFiles(siteId);
+  const { text: draft, binary: assets } = await loadDraftFiles(siteId);
   const overlay = overlayFiles(draft, access.site.templateId || CUSTOM_TEMPLATE_ID);
 
   // Create the version row first so we have an id to namespace the
@@ -184,6 +193,26 @@ export async function publishSite(
         public: true,
       });
       artifacts.push({ outputPath: out, blobKey: key, size: res.size });
+    }
+  }
+
+  // Binary assets (user-uploaded images, icons) — copied as-is from
+  // the draft blob to the published version's namespace. They don't go
+  // through any rendering, and their content-type is derived from the
+  // path extension.
+  for (const [path, bytes] of Object.entries(assets)) {
+    try {
+      const key = `pub/${slug}/${version.id}/${path}`;
+      const res = await blob.put(key, bytes, {
+        contentType: contentTypeForPath(path),
+        public: true,
+      });
+      artifacts.push({ outputPath: path, blobKey: key, size: res.size });
+    } catch (err) {
+      // Assets never render — just log and skip so publishing a text
+      // change doesn't fail on a transient blob error.
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[publish] asset upload failed for ${path}: ${message}`);
     }
   }
 

@@ -1,5 +1,6 @@
 import { CUSTOM_TEMPLATE_ID } from '../templates/registry';
 import type { SiteState, ChatMessage } from './files';
+import { isBinaryPath } from './paths';
 
 // Client-side adapter over the /api/sites/:id endpoints. Returns the same
 // SiteState shape the editor already uses, so the existing reducers
@@ -91,10 +92,15 @@ export async function loadSiteFromServer(siteId: string): Promise<{
     files: ApiFileEntry[];
   };
 
-  // Fetch each file's content in parallel. Per-site file count is small
-  // today (handful of pages + partials + styles) — this is fine.
+  // Fetch each text file's content in parallel. Binary assets (images,
+  // icons) are tracked by path only — their bytes live on the server
+  // and flow through the publish pipeline untouched, so we store an
+  // empty-string placeholder for the editor's in-memory map. The
+  // useServerSite diff logic skips binary paths on save so this
+  // placeholder never overwrites the real bytes.
   const contents = await Promise.all(
     entries.map(async (e): Promise<[string, string]> => {
+      if (isBinaryPath(e.path)) return [e.path, ''];
       const res = await fetch(
         `/api/sites/${siteId}/files/${encodeFilePath(e.path)}`,
         { credentials: 'same-origin' },
