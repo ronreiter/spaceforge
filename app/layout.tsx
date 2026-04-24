@@ -23,7 +23,11 @@ export default async function RootLayout({
       <head>
         <ColorSchemeScript defaultColorScheme="dark" />
       </head>
-      <body>
+      {/* suppressHydrationWarning silences false positives from
+          browser extensions (Testim, password managers, ad blockers,
+          etc.) that inject attributes onto <body> before React
+          hydrates. <html> already has it via mantineHtmlProps. */}
+      <body suppressHydrationWarning>
         <Providers>{children}</Providers>
       </body>
     </html>
