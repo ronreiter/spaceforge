@@ -100,7 +100,16 @@ export async function GET(
     blobKey: string;
     size: number;
   }>;
-  const entry = manifest.find((a) => a.outputPath === resolved);
+  let entry = manifest.find((a) => a.outputPath === resolved);
+  // Collection directory fallback: /s/<slug>/posts/ resolves to
+  // posts.html by default, which won't exist — try posts/index.html
+  // before giving up. Also handles bare /posts when Next strips the
+  // trailing slash.
+  if (!entry && resolved.endsWith('.html')) {
+    const stem = resolved.slice(0, -'.html'.length);
+    const indexPath = `${stem}/index.html`;
+    entry = manifest.find((a) => a.outputPath === indexPath);
+  }
   if (!entry) {
     return new NextResponse(`Not found: ${resolved}`, { status: 404 });
   }

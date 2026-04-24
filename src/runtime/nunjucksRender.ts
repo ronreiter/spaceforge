@@ -1,4 +1,5 @@
 import nunjucks from 'nunjucks';
+import fm from 'front-matter';
 
 // Small models frequently mix up Liquid-style filter syntax (`{{ x | filter:
 // "arg" }}`) with Nunjucks's native parenthesised form (`{{ x | filter("arg")
@@ -113,6 +114,79 @@ export function isTemplate(path: string): boolean {
   return path.endsWith('.njk');
 }
 
+// Build the `collections` object exposed to Nunjucks templates:
+//   { posts: [{title, date, url, excerpt, ...frontMatter}, ...], ... }
+// Keys are every top-level directory that contains at least one .md
+// file, excluding partials (_*.md).
+//
+// Parses front matter with `front-matter` directly (not
+// markdownRender.parseFrontMatter) to avoid a circular import —
+// markdownRender already depends on this file for outputPath.
+export function buildCollections(files: Record<string, string>): Record<
+  string,
+  Array<Record<string, unknown>>
+> {
+  const grouped: Record<string, Array<Record<string, unknown>>> = {};
+  for (const [path, src] of Object.entries(files)) {
+    const slashIdx = path.indexOf('/');
+    if (slashIdx <= 0) continue;
+    if (!path.endsWith('.md')) continue;
+    const base = path.split('/').pop() ?? path;
+    if (base.startsWith('_')) continue;
+    // The collection's own index page (posts/index.md) lists the
+    // collection — it's not itself a post. Skip it.
+    if (base === 'index.md') continue;
+    const dir = path.slice(0, slashIdx);
+
+    let data: Record<string, unknown> = {};
+    let body = src;
+    try {
+      const parsed = fm<Record<string, unknown>>(src);
+      data = parsed.attributes ?? {};
+      body = parsed.body;
+    } catch {
+      // Malformed front matter — treat the whole thing as body. The
+      // editor's markdownRender.parseFrontMatter already handles this
+      // case too; we don't want a bad page to drop the whole
+      // collection.
+    }
+
+    const excerpt = body
+      .replace(/^#.*$/m, '')
+      .trim()
+      .slice(0, 180);
+    const url = outputPath(path);
+    const item: Record<string, unknown> = {
+      ...data,
+      path,
+      url,
+      excerpt,
+      title: typeof data.title === 'string' ? data.title : base,
+    };
+    if (!grouped[dir]) grouped[dir] = [];
+    grouped[dir].push(item);
+  }
+  // Sort each collection by date desc (fallback: title asc). YAML
+  // auto-parses ISO dates into Date objects, so we accept both Date
+  // and string and coerce to a sortable number.
+  const asTime = (v: unknown): number => {
+    if (v instanceof Date) return v.getTime();
+    if (typeof v === 'string') {
+      const t = Date.parse(v);
+      return isNaN(t) ? 0 : t;
+    }
+    return 0;
+  };
+  for (const dir of Object.keys(grouped)) {
+    grouped[dir].sort((a, b) => {
+      const diff = asTime(b.date) - asTime(a.date);
+      if (diff !== 0) return diff;
+      return String(a.title).localeCompare(String(b.title));
+    });
+  }
+  return grouped;
+}
+
 // Page templates start with a non-underscore letter (index.njk, about.njk).
 // Partials/layouts start with an underscore and are NOT rendered directly.
 export function isPageTemplate(path: string): boolean {
@@ -127,7 +201,11 @@ export function renderTemplate(
   context: Record<string, unknown> = {},
 ): string {
   const env = createEnv(files);
-  return env.render(path, context);
+  // Inject `collections` automatically so standalone .njk pages can
+  // iterate over blog posts etc. without the caller having to build
+  // it. An explicit context value wins if one was passed in.
+  const merged = { collections: buildCollections(files), ...context };
+  return env.render(path, merged);
 }
 
 // Map a template/markdown source path to its emitted .html equivalent.
