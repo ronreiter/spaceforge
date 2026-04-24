@@ -167,6 +167,13 @@ export const pageViews = pgTable(
     userAgent: text('user_agent'),
     ip: text('ip'),
     host: text('host'),
+    // 2-letter country code from the reverse proxy (Vercel's
+    // `x-vercel-ip-country` etc.). Null when we couldn't determine it.
+    country: text('country'),
+    // Per-day-per-visitor dedup key: sha256 of (ip + userAgent) truncated.
+    // Used for unique-visitor counts. Stored at insert time so the query
+    // is a simple count(distinct).
+    visitorHash: text('visitor_hash'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('page_views_site_idx').on(t.siteId, t.createdAt)],

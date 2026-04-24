@@ -6,6 +6,9 @@ import { AnalyticsView } from './AnalyticsView';
 
 export const dynamic = 'force-dynamic';
 
+// Client drives range selection by re-requesting via fetch; the initial
+// SSR pass just renders the default 30-day window so the page lands
+// instantly.
 export default async function SiteAnalyticsPage({
   params,
 }: {
@@ -22,7 +25,7 @@ export default async function SiteAnalyticsPage({
   const access = await getSiteAccess(user, siteId);
   if (!access) notFound();
 
-  const summary = await getAnalyticsSummary(user, siteId);
+  const summary = await getAnalyticsSummary(user, siteId, { range: '30d' });
 
   return (
     <AnalyticsView
@@ -33,7 +36,7 @@ export default async function SiteAnalyticsPage({
         name: access.site.name,
         slug: access.site.slug,
       }}
-      summary={summary}
+      initialSummary={summary}
     />
   );
 }
