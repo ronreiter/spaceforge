@@ -380,7 +380,12 @@ export async function removeSiteCollaborator(
 ): Promise<void> {
   const access = await getSiteAccess(user, siteId);
   if (!access) throw new ValidationError('Site not found.');
-  if (!roleAtLeast(access.role, 'admin')) {
+  // Self-removal ("leave this site") is always allowed for anyone with
+  // access via a collaborator grant — you should be able to walk away
+  // from a share you no longer want without asking the owner. Admin
+  // check still applies when removing someone else.
+  const isSelf = targetUserId === user.id;
+  if (!isSelf && !roleAtLeast(access.role, 'admin')) {
     throw new ValidationError(
       'Only site admins/owners can manage collaborators.',
     );

@@ -54,6 +54,9 @@ export const sites = pgTable(
     slug: text('slug').notNull().unique(),
     name: text('name').notNull(),
     templateId: text('template_id').notNull().default('custom'),
+    // Tabler icon name without the "ti-" prefix (e.g. "rocket", "bread").
+    // Null → the route-level fallback favicon is served.
+    faviconIcon: text('favicon_icon'),
     // publishedVersionId is a FK to site_versions, but defined as plain uuid
     // here to avoid the circular FK (site_versions.siteId → sites.id). Set
     // via plain UPDATE after inserting a version row.
@@ -131,6 +134,58 @@ export const chatMessages = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('chat_messages_site_idx').on(t.siteId, t.id)],
+);
+
+// Page views against the public /s/:slug/... serving route. One row per
+// hit. The serving route records them fire-and-forget so latency stays
+// flat; the authed analytics page rolls them up into totals + top
+// pages / referrers.
+export const pageViews = pgTable(
+  'page_views',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    siteId: uuid('site_id').notNull().references(() => sites.id, { onDelete: 'cascade' }),
+    path: text('path').notNull(),
+    referrer: text('referrer'),
+    userAgent: text('user_agent'),
+    ip: text('ip'),
+    host: text('host'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('page_views_site_idx').on(t.siteId, t.createdAt)],
+);
+
+// Form submissions captured from a published site. The public
+// POST /api/forms/:slug/:name handler writes into this table; the
+// editor surfaces the submissions under /sites/:id/forms. Data is
+// stored verbatim as jsonb so a form can have any field set.
+export const formSubmissions = pgTable(
+  'form_submissions',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    siteId: uuid('site_id').notNull().references(() => sites.id, { onDelete: 'cascade' }),
+    formName: text('form_name').notNull(),
+    data: jsonb('data').notNull(),
+    userAgent: text('user_agent'),
+    ip: text('ip'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('form_submissions_site_idx').on(t.siteId, t.createdAt)],
+);
+
+// Custom domains pointed at a site. One domain maps to one site; the
+// middleware reads this table to translate `bakery.com` → /s/<slug>.
+// Attaching the domain on Vercel (or wherever it terminates) is a
+// separate manual step — this table only records the mapping.
+export const siteDomains = pgTable(
+  'site_domains',
+  {
+    domain: text('domain').primaryKey(), // normalized lowercase, e.g. "bakery.com"
+    siteId: uuid('site_id').notNull().references(() => sites.id, { onDelete: 'cascade' }),
+    addedBy: text('added_by').notNull().references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('site_domains_site_idx').on(t.siteId)],
 );
 
 // Table type helpers for convenient inference.

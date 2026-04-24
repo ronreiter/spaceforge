@@ -58,6 +58,11 @@ LAYOUT & PARTIALS — Nunjucks (.njk):
 - Files starting with \`_\` are partials/layouts — they are NOT rendered as standalone pages.
 - The layout has access to all page front-matter keys, plus \`content\` and \`page\` ({ path, url }).
 - IMPORTANT: .njk files do NOT use YAML front matter. Never start a .njk file with \`---\`. Front matter belongs only in .md content files. Start .njk files directly with their markup.
+- YAML front-matter rule (STRICT): never put a colon (\`:\`) inside a value. A second colon on the same line breaks YAML.
+    WRONG:  title: Sprout: Smart Plant Care
+    RIGHT:  title: Sprout — Smart Plant Care
+    RIGHT:  title: Sprout - Smart Plant Care
+  Same for \`description:\`, \`subtitle:\`, and every other field. Use a dash (em-dash or hyphen) instead of a colon. If you truly need a colon, wrap the value in double quotes, but prefer the dash.
 
 Canonical _layout.njk:
   <!DOCTYPE html>
@@ -82,9 +87,10 @@ _header.njk SHAPE — keep it to ONE row:
 - Exactly two top-level children inside <header>: the brand (<h1>, <h2>, or <a class="brand">) on the left, and a <nav><ul>…</ul></nav> on the right. Nothing else.
 - NO tagline <p>, NO subtitle, NO second row, NO social-icon row. Those make the brand line up higher than the nav.
 - Put taglines in the page content (index.md), not in _header.njk.
+- BRAND LOGO RULE: the brand link MUST start with a Tabler icon next to the site name — never plain text only, never an emoji, never an <img>. Pick an icon that fits the business (ti-bread for a bakery, ti-code for a dev tool, ti-camera for a studio). Canonical: <a class="brand" href="index.html"><i class="ti ti-bread"></i> Site Name</a>.
 - Canonical shape:
     <header>
-      <a class="brand" href="index.html">Site Name</a>
+      <a class="brand" href="index.html"><i class="ti ti-bread"></i> Site Name</a>
       <nav>
         <ul>
           <li><a href="index.html">Home</a></li>
@@ -108,6 +114,17 @@ ICONS — Tabler is ALREADY LOADED. Use them HEAVILY:
 - Footer social: ti-brand-github, ti-brand-x, ti-brand-instagram, ti-brand-linkedin, ti-brand-youtube.
 Names (all prefixed \`ti ti-\`): home, menu-2, x, plus, check, arrow-right, arrow-left, external-link, mail, phone, map-pin, map, calendar, clock, user, users, search, shopping-cart, credit-card, star, heart, bookmark, camera, photo, video, music, book, coffee, cake, bread, wine, pizza, leaf, sun, moon, flame, snowflake, brand-github, brand-x, brand-instagram, brand-linkedin, brand-facebook, brand-youtube.
 Pair icons with labels, never alone.
+
+NO EMOJIS — anywhere. Not in headings, nav, buttons, lists, titles, footers, or content. Unicode emoji (🍞, ☕, 🎉, ✨, ✅, →, …) are banned. Reach for a Tabler icon instead: 🍞 → <i class="ti ti-bread"></i>; ☕ → <i class="ti ti-coffee"></i>; ✅ → <i class="ti ti-check"></i>; → → <i class="ti ti-arrow-right"></i>. Applies to every .md body, every .njk partial, and every page title.
+
+FAVICON — end your reply with "Suggested favicon: ti-<name>" picking a Tabler icon that fits the business (bread, coffee, code, rocket, plant, camera, music, …). The user applies it via the Favicon picker; don't emit a <link rel="icon"> tag.
+
+FORMS — contact / signup / feedback forms:
+- <form action="/api/forms/{{ site.slug }}/contact" method="post"> (pick a short name: contact / signup / feedback).
+- {{ site.slug }} is auto-filled at publish time — use the literal expression, don't hardcode a slug.
+- Include a hidden honeypot: <input type="text" name="_company" style="display:none" tabindex="-1" autocomplete="off">
+- Every input needs a <label for="id">; type="email" / type="tel" where appropriate; required on required fields.
+- After submission the user is redirected back with ?submitted=<name> in the URL.
 
 PHOTOS — every content page MUST carry at least one image. Spaceforge proxies Unsplash server-side; no API key in HTML. URL:
   /api/photo?q=<keywords>&seed=<n>&w=<w>&h=<h>

@@ -74,14 +74,26 @@ function lenientFrontMatterSplit(src: string): { raw: string; body: string } | n
 }
 
 export function parseFrontMatter(src: string): FrontMatter {
+  // Malformed YAML (unquoted colons, bad indentation, etc.) must not
+  // crash the caller — the editor relies on this to open any saved
+  // page, even ones the model emitted with invalid front-matter. On
+  // failure we fall back to treating the whole source as a bare body.
   const lenient = lenientFrontMatterSplit(src);
   if (lenient) {
     const fenced = `---\n${lenient.raw}\n---\n${lenient.body}`;
-    const result = fm<Record<string, unknown>>(fenced);
-    return { data: result.attributes ?? {}, body: result.body };
+    try {
+      const result = fm<Record<string, unknown>>(fenced);
+      return { data: result.attributes ?? {}, body: result.body };
+    } catch {
+      return { data: {}, body: lenient.body };
+    }
   }
-  const result = fm<Record<string, unknown>>(src);
-  return { data: result.attributes ?? {}, body: result.body };
+  try {
+    const result = fm<Record<string, unknown>>(src);
+    return { data: result.attributes ?? {}, body: result.body };
+  } catch {
+    return { data: {}, body: src };
+  }
 }
 
 export function renderMarkdown(body: string): string {
@@ -122,6 +134,7 @@ const DEFAULT_LAYOUT = '_layout.njk';
 export function renderMarkdownPage(
   path: string,
   files: Record<string, string>,
+  siteContext: { slug?: string; name?: string } = {},
 ): string {
   const src = files[path] ?? '';
   const { data, body } = parseFrontMatter(src);
@@ -129,6 +142,7 @@ export function renderMarkdownPage(
   const preContext = {
     ...data,
     page: { path, url: outputPath(path) },
+    site: siteContext,
   };
   const processedBody = preprocessBody(body, files, preContext);
   const content = renderMarkdown(processedBody);
@@ -139,6 +153,7 @@ export function renderMarkdownPage(
     ...data,
     content,
     page: { path, url: outputPath(path) },
+    site: siteContext,
   };
 
   if (!(layoutName in files)) {

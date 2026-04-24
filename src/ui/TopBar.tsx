@@ -18,18 +18,26 @@ import {
 } from '@mantine/core';
 import {
   IconArrowLeft,
+  IconChartBar,
   IconCheck,
   IconChevronDown,
   IconEye,
+  IconForms,
   IconHistory,
+  IconPhoto,
   IconRocket,
   IconRocketOff,
+  IconShare,
   IconSun,
   IconMoon,
   IconTrash,
 } from '@tabler/icons-react';
+import Link from 'next/link';
 import { ModelSelector } from './ModelSelector';
 import { AppBrand } from './AppBrand';
+import { ShareSiteModal } from './ShareSiteModal';
+import { FaviconModal } from './FaviconModal';
+import { UserMenu } from './UserMenu';
 
 export type TopBarProps = {
   modelId: string;
@@ -56,6 +64,11 @@ export type TopBarProps = {
   // ms-since-epoch of the last acknowledged server save. null until the
   // first save completes.
   lastSavedAt?: number | null;
+  // Identity for the user menu (sign-out live in the same dropdown).
+  // Omitted in the localStorage-only/test embedding — the menu is
+  // simply not rendered.
+  user?: { email: string; name: string | null };
+  isDevAuth?: boolean;
 };
 
 type VersionSummary = {
@@ -131,6 +144,8 @@ export function TopBar(p: TopBarProps) {
   const { setColorScheme } = useMantineColorScheme();
   const computed = useComputedColorScheme('dark', { getInitialValueInEffect: true });
   const dark = computed === 'dark';
+  const [shareOpen, setShareOpen] = useState(false);
+  const [faviconOpen, setFaviconOpen] = useState(false);
 
   const statusColor =
     p.statusKind === 'ready' ? 'teal' : p.statusKind === 'error' ? 'red' : 'blue';
@@ -138,8 +153,11 @@ export function TopBar(p: TopBarProps) {
   const hasSite = typeof p.siteSlug === 'string';
   const canWrite =
     !hasSite || p.role === 'owner' || p.role === 'admin' || p.role === 'editor';
+  const canShare =
+    hasSite && !!p.siteId && (p.role === 'owner' || p.role === 'admin');
 
   return (
+    <>
     <Box
       px="md"
       py="sm"
@@ -261,6 +279,10 @@ export function TopBar(p: TopBarProps) {
           </ActionIcon>
         </Tooltip>
 
+        {p.user && (
+          <UserMenu user={p.user} isDevAuth={!!p.isDevAuth} />
+        )}
+
         {hasSite &&
           (p.publishedAt ? (
             <Badge size="xs" color="green">
@@ -278,6 +300,58 @@ export function TopBar(p: TopBarProps) {
                 View
               </Button>
             </Anchor>
+          </Tooltip>
+        )}
+        {hasSite && p.siteId && canWrite && (
+          <Tooltip label="Favicon">
+            <Button
+              variant="default"
+              size="xs"
+              leftSection={<IconPhoto size={14} />}
+              onClick={() => setFaviconOpen(true)}
+            >
+              Favicon
+            </Button>
+          </Tooltip>
+        )}
+        {hasSite && p.siteId && (
+          <Tooltip label="Analytics">
+            <Anchor component={Link} href={`/sites/${p.siteId}/analytics`} underline="never">
+              <Button
+                variant="default"
+                size="xs"
+                leftSection={<IconChartBar size={14} />}
+                component="span"
+              >
+                Analytics
+              </Button>
+            </Anchor>
+          </Tooltip>
+        )}
+        {hasSite && p.siteId && (
+          <Tooltip label="Form submissions">
+            <Anchor component={Link} href={`/sites/${p.siteId}/forms`} underline="never">
+              <Button
+                variant="default"
+                size="xs"
+                leftSection={<IconForms size={14} />}
+                component="span"
+              >
+                Forms
+              </Button>
+            </Anchor>
+          </Tooltip>
+        )}
+        {canShare && (
+          <Tooltip label="Share with others">
+            <Button
+              variant="default"
+              size="xs"
+              leftSection={<IconShare size={14} />}
+              onClick={() => setShareOpen(true)}
+            >
+              Share
+            </Button>
           </Tooltip>
         )}
         {hasSite && canWrite && (
@@ -304,6 +378,20 @@ export function TopBar(p: TopBarProps) {
         )}
       </Group>
     </Box>
+    {canShare && p.siteId && p.siteName && (
+      <ShareSiteModal
+        site={shareOpen ? { id: p.siteId, name: p.siteName } : null}
+        onClose={() => setShareOpen(false)}
+      />
+    )}
+    {hasSite && p.siteId && (
+      <FaviconModal
+        siteId={p.siteId}
+        opened={faviconOpen}
+        onClose={() => setFaviconOpen(false)}
+      />
+    )}
+    </>
   );
 }
 

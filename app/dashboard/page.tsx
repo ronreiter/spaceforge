@@ -22,5 +22,5 @@ export default async function DashboardPage() {
     redirect('/sign-in');
   }
   const sites = await listSitesForUser(user);
-  return <DashboardView user={user} sites={sites} />;
+  return <DashboardView user={user} sites={sites} isDevAuth={isDevAuth()} />;
 }

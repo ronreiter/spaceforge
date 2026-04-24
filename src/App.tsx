@@ -72,6 +72,11 @@ export type SiteChrome = {
   // Called after a rollback so the host can refresh publishedAt +
   // publishedVersionId without a page reload.
   onVersionChanged?: (publishedAt: string, versionId: string) => void;
+  // Identity for the top-bar user menu. Present only when the host
+  // (SiteEditor) has an authenticated user — absent in the
+  // localStorage-only tests.
+  user?: { email: string; name: string | null };
+  isDevAuth?: boolean;
 };
 
 export type AppProps = {
@@ -610,6 +615,8 @@ function AppInnerBody({
           onVersionChanged={chrome?.onVersionChanged}
           saving={saving}
           lastSavedAt={lastSavedAt}
+          user={chrome?.user}
+          isDevAuth={chrome?.isDevAuth}
         />
       </AppShell.Header>
 

@@ -14,5 +14,5 @@ export default async function TeamPage() {
     redirect('/sign-in');
   }
   const members = await listTeamMembers(user);
-  return <TeamView user={user} members={members} />;
+  return <TeamView user={user} members={members} isDevAuth={isDevAuth()} />;
 }

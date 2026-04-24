@@ -15,6 +15,34 @@
       "when": 1776888567234,
       "tag": "0001_sites_deleted_at",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1777033265241,
+      "tag": "0002_site_domains",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1777033522820,
+      "tag": "0003_form_submissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1777034205370,
+      "tag": "0004_page_views",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1777034807148,
+      "tag": "0005_favicon_icon",
+      "breakpoints": true
     }
   ]
 }

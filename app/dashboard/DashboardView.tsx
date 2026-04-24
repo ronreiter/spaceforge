@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useTransition } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -10,7 +10,6 @@ import {
   Container,
   Group,
   Modal,
-  Select,
   Stack,
   Text,
   TextInput,
@@ -22,23 +21,27 @@ import {
   Tooltip,
 } from '@mantine/core';
 import {
+  IconCopy,
   IconPlus,
   IconTrash,
   IconShare,
   IconUsers,
+  IconLogout,
 } from '@tabler/icons-react';
 import type { AuthedUser } from '../../lib/auth/types';
 import type { SiteSummary } from '../../lib/sites/service';
-import type { CollabRole, CollaboratorRow } from '../../lib/sharing/service';
 import { useAlert, useConfirm } from '../../src/ui/dialogs';
 import { AppHeader } from '../../src/ui/AppHeader';
+import { ShareSiteModal } from '../../src/ui/ShareSiteModal';
 
 export function DashboardView({
   user,
   sites: initialSites,
+  isDevAuth,
 }: {
   user: AuthedUser;
   sites: SiteSummary[];
+  isDevAuth: boolean;
 }) {
   const router = useRouter();
   const [sites, setSites] = useState(initialSites);
@@ -51,6 +54,45 @@ export function DashboardView({
 
   // Share modal state — opened per-site.
   const [shareSite, setShareSite] = useState<SiteSummary | null>(null);
+  // Clone modal state.
+  const [cloneSource, setCloneSource] = useState<SiteSummary | null>(null);
+  const [cloneSlug, setCloneSlug] = useState('');
+  const [cloneName, setCloneName] = useState('');
+  const [cloneError, setCloneError] = useState<string | null>(null);
+  const [cloning, setCloning] = useState(false);
+
+  function openClone(site: SiteSummary) {
+    setCloneSource(site);
+    setCloneSlug(`${site.slug}-copy`.slice(0, 50));
+    setCloneName(`${site.name} (copy)`);
+    setCloneError(null);
+  }
+
+  async function submitClone() {
+    if (!cloneSource) return;
+    setCloning(true);
+    setCloneError(null);
+    try {
+      const res = await fetch(`/api/sites/${cloneSource.id}/clone`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ slug: cloneSlug, name: cloneName }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        setCloneError(body?.error ?? `HTTP ${res.status}`);
+        return;
+      }
+      const body = (await res.json()) as { site: SiteSummary };
+      setSites((xs) => [body.site, ...xs]);
+      setCloneSource(null);
+      router.push(`/sites/${body.site.id}`);
+    } catch (err) {
+      setCloneError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setCloning(false);
+    }
+  }
 
   const { teamSites, sharedSites } = useMemo(() => {
     const team = sites.filter((s) => s.via === 'team');
@@ -87,6 +129,35 @@ export function DashboardView({
     }
   }
 
+  async function leaveSite(id: string) {
+    const site = sites.find((s) => s.id === id);
+    const ok = await confirmDialog({
+      title: 'Leave this site?',
+      message: site ? (
+        <>
+          You'll lose access to <b>{site.name}</b>. The owner can re-invite
+          you anytime.
+        </>
+      ) : (
+        'Leave this shared site?'
+      ),
+      confirmLabel: 'Leave',
+      danger: true,
+    });
+    if (!ok) return;
+    const res = await fetch(`/api/sites/${id}/collaborators/${user.id}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) {
+      await alertDialog({
+        title: 'Could not leave',
+        message: `HTTP ${res.status}`,
+      });
+      return;
+    }
+    setSites((s) => s.filter((x) => x.id !== id));
+  }
+
   async function deleteSite(id: string) {
     const site = sites.find((s) => s.id === id);
     const ok = await confirmDialog({
@@ -118,6 +189,7 @@ export function DashboardView({
     <AppShell header={{ height: 56 }} padding="md">
       <AppHeader
         user={user}
+        isDevAuth={isDevAuth}
         nav={
           <>
             <Anchor component={Link} href="/dashboard/trash" c="dimmed">
@@ -172,6 +244,7 @@ export function DashboardView({
                     startTransition(() => router.push(`/sites/${s.id}`))
                   }
                   onShare={() => setShareSite(s)}
+                  onClone={() => openClone(s)}
                   onDelete={() => deleteSite(s.id)}
                 />
               ))}
@@ -191,6 +264,8 @@ export function DashboardView({
                     onOpen={() =>
                       startTransition(() => router.push(`/sites/${s.id}`))
                     }
+                    onClone={() => openClone(s)}
+                    onLeave={() => leaveSite(s.id)}
                   />
                 ))}
               </SimpleGrid>
@@ -203,6 +278,51 @@ export function DashboardView({
         site={shareSite}
         onClose={() => setShareSite(null)}
       />
+
+      <Modal
+        opened={!!cloneSource}
+        onClose={() => setCloneSource(null)}
+        title={cloneSource ? `Duplicate "${cloneSource.name}"` : 'Duplicate site'}
+        centered
+      >
+        <Stack>
+          <Text size="xs" c="dimmed">
+            The new site is a fresh draft in your team. Files are copied;
+            published versions, chat history, collaborators, and custom
+            domains are not.
+          </Text>
+          <TextInput
+            label="Name"
+            value={cloneName}
+            onChange={(e) => setCloneName(e.currentTarget.value)}
+            required
+          />
+          <TextInput
+            label="Slug"
+            description="Shown in the URL: /s/<slug>. Must be unique."
+            value={cloneSlug}
+            onChange={(e) => setCloneSlug(e.currentTarget.value)}
+            required
+          />
+          {cloneError && (
+            <Text c="red" size="sm">
+              {cloneError}
+            </Text>
+          )}
+          <Group justify="flex-end">
+            <Button variant="default" onClick={() => setCloneSource(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={submitClone}
+              loading={cloning}
+              leftSection={<IconCopy size={14} />}
+            >
+              Duplicate
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
 
       <Modal
         opened={open}
@@ -249,12 +369,16 @@ function SiteCard({
   site,
   onOpen,
   onShare,
+  onClone,
   onDelete,
+  onLeave,
 }: {
   site: SiteSummary;
   onOpen: () => void;
   onShare?: () => void;
+  onClone?: () => void;
   onDelete?: () => void;
+  onLeave?: () => void;
 }) {
   // Card is clickable — opens the editor. Icon-button row intercepts
   // clicks (stopPropagation) so Share / Delete don't also trigger nav.
@@ -310,6 +434,13 @@ function SiteCard({
               </ActionIcon>
             </Tooltip>
           )}
+          {onClone && (
+            <Tooltip label="Duplicate site" openDelay={200}>
+              <ActionIcon variant="subtle" onClick={onClone} aria-label="Duplicate site">
+                <IconCopy size={14} />
+              </ActionIcon>
+            </Tooltip>
+          )}
           {onDelete && (site.role === 'owner' || site.role === 'admin') && (
             <Tooltip label="Move to trash" openDelay={200}>
               <ActionIcon
@@ -322,161 +453,21 @@ function SiteCard({
               </ActionIcon>
             </Tooltip>
           )}
+          {onLeave && (
+            <Tooltip label="Leave site" openDelay={200}>
+              <ActionIcon
+                variant="subtle"
+                color="red"
+                onClick={onLeave}
+                aria-label="Leave site"
+              >
+                <IconLogout size={14} />
+              </ActionIcon>
+            </Tooltip>
+          )}
         </Group>
       </Group>
     </Card>
   );
 }
 
-function ShareSiteModal({
-  site,
-  onClose,
-}: {
-  site: SiteSummary | null;
-  onClose: () => void;
-}) {
-  const [collaborators, setCollaborators] = useState<CollaboratorRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [email, setEmail] = useState('');
-  const [role, setRole] = useState<CollabRole>('editor');
-  const [inviting, setInviting] = useState(false);
-  const alertDialog = useAlert();
-
-  // Fetch when the modal is opened on a new site.
-  useEffect(() => {
-    if (!site) return;
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    fetch(`/api/sites/${site.id}/collaborators`, { credentials: 'same-origin' })
-      .then(async (res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const body = (await res.json()) as { collaborators: CollaboratorRow[] };
-        if (!cancelled) setCollaborators(body.collaborators);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [site]);
-
-  if (!site) return null;
-
-  async function add() {
-    if (!site) return;
-    setInviting(true);
-    setError(null);
-    const res = await fetch(`/api/sites/${site.id}/collaborators`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email, role }),
-    });
-    if (!res.ok) {
-      const body = (await res.json().catch(() => null)) as { error?: string } | null;
-      setError(body?.error ?? `HTTP ${res.status}`);
-      setInviting(false);
-      return;
-    }
-    const body = (await res.json()) as { collaborator: CollaboratorRow };
-    setCollaborators((cs) => [
-      body.collaborator,
-      ...cs.filter((c) => c.userId !== body.collaborator.userId),
-    ]);
-    setEmail('');
-    setInviting(false);
-  }
-
-  async function remove(userId: string) {
-    if (!site) return;
-    const res = await fetch(`/api/sites/${site.id}/collaborators/${userId}`, {
-      method: 'DELETE',
-    });
-    if (!res.ok) {
-      await alertDialog({
-        title: 'Remove failed',
-        message: `HTTP ${res.status}`,
-      });
-      return;
-    }
-    setCollaborators((cs) => cs.filter((c) => c.userId !== userId));
-  }
-
-  return (
-    <Modal opened={!!site} onClose={onClose} title={`Share "${site.name}"`} size="md" centered>
-      <Stack>
-        <Group gap="xs" align="flex-end">
-          <TextInput
-            label="Email"
-            placeholder="friend@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.currentTarget.value)}
-            style={{ flex: 1 }}
-          />
-          <Select
-            label="Role"
-            value={role}
-            onChange={(v) => v && setRole(v as CollabRole)}
-            data={[
-              { value: 'editor', label: 'Editor' },
-              { value: 'viewer', label: 'Viewer' },
-            ]}
-            allowDeselect={false}
-            w={120}
-          />
-          <Button onClick={add} loading={inviting}>
-            Add
-          </Button>
-        </Group>
-        <Text size="xs" c="dimmed">
-          Collaborators can open and (if editor) save this site. They don't get
-          access to other sites in the team.
-        </Text>
-        {error && (
-          <Text c="red" size="sm">
-            {error}
-          </Text>
-        )}
-        <Stack gap="xs">
-          <Text size="sm" fw={600} mt="sm">
-            Current collaborators
-          </Text>
-          {loading ? (
-            <Text size="xs" c="dimmed">
-              Loading…
-            </Text>
-          ) : collaborators.length === 0 ? (
-            <Text size="xs" c="dimmed">
-              None yet.
-            </Text>
-          ) : (
-            collaborators.map((c) => (
-              <Group key={c.userId} justify="space-between">
-                <Stack gap={0}>
-                  <Text size="sm">{c.name ?? c.email}</Text>
-                  <Text size="xs" c="dimmed">
-                    {c.email} · {c.role}
-                  </Text>
-                </Stack>
-                <Tooltip label="Remove">
-                  <ActionIcon
-                    color="red"
-                    variant="subtle"
-                    onClick={() => remove(c.userId)}
-                  >
-                    <IconTrash size={14} />
-                  </ActionIcon>
-                </Tooltip>
-              </Group>
-            ))
-          )}
-        </Stack>
-      </Stack>
-    </Modal>
-  );
-}

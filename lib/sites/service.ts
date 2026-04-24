@@ -352,6 +352,67 @@ export async function updateSite(
   await db.update(schema.sites).set(fields).where(eq(schema.sites.id, siteId));
 }
 
+// Duplicate an existing site into the caller's team. Copies every
+// draft file (re-uploads each blob under the new site's key prefix),
+// carries over the templateId, and returns the fresh SiteSummary. Does
+// NOT copy: chat history, published versions, collaborators, or
+// custom domains — a clone starts as an unpublished draft the new
+// owner iterates on independently.
+export async function cloneSite(
+  user: AuthedUser,
+  sourceSiteId: string,
+  input: { slug: string; name: string },
+): Promise<SiteSummary> {
+  // Source must be visible to the caller (team member or collaborator).
+  const src = await getSiteAccess(user, sourceSiteId);
+  if (!src) throw new ValidationError('Site not found.');
+
+  if (!SLUG_RE.test(input.slug)) {
+    throw new ValidationError(
+      'Slug must be 3–50 chars, lowercase letters, digits, and hyphens.',
+    );
+  }
+  const name = input.name.trim();
+  if (!name) throw new ValidationError('Name is required.');
+
+  const [taken] = await db
+    .select({ id: schema.sites.id })
+    .from(schema.sites)
+    .where(eq(schema.sites.slug, input.slug))
+    .limit(1);
+  if (taken) throw new ValidationError(`Slug "${input.slug}" is taken.`);
+
+  // Insert destination row first so we have an id for the blob keys.
+  const [dest] = await db
+    .insert(schema.sites)
+    .values({
+      teamId: user.teamId,
+      slug: input.slug,
+      name,
+      templateId: src.site.templateId,
+      createdBy: user.id,
+    })
+    .returning();
+
+  // Copy files. Imported lazily to avoid a service ↔ files circular
+  // import at module load.
+  const { cloneFilesBetweenSites } = await import('./files-clone');
+  await cloneFilesBetweenSites(sourceSiteId, dest.id);
+
+  return {
+    id: dest.id,
+    slug: dest.slug,
+    name: dest.name,
+    templateId: dest.templateId,
+    teamId: dest.teamId,
+    createdAt: dest.createdAt,
+    updatedAt: dest.updatedAt,
+    publishedAt: dest.publishedAt,
+    role: 'owner',
+    via: 'team',
+  };
+}
+
 // Touch updatedAt on the site row — called whenever drafts change so
 // dashboard sort order reflects recent activity.
 export async function touchSite(siteId: string): Promise<void> {

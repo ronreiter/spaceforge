@@ -14,5 +14,5 @@ export default async function TrashPage() {
     redirect('/sign-in');
   }
   const sites = await listTrashForUser(user);
-  return <TrashView user={user} sites={sites} />;
+  return <TrashView user={user} sites={sites} isDevAuth={isDevAuth()} />;
 }
