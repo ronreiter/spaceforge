@@ -187,19 +187,24 @@ export function TopBar(p: TopBarProps) {
               >
                 {p.siteName}
               </Text>
-              <Text
-                size="xs"
+              <Anchor
+                href={`https://spaceforge.dev/s/${p.siteSlug}/`}
+                target="_blank"
+                rel="noopener"
                 c="dimmed"
+                underline="hover"
                 ff="monospace"
+                size="xs"
                 style={{
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   maxWidth: 320,
+                  display: 'block',
                 }}
               >
-                /s/{p.siteSlug}
-              </Text>
+                spaceforge.dev/s/{p.siteSlug}
+              </Anchor>
             </Box>
             {!canWrite && (
               <Badge size="xs" color="blue">
@@ -269,7 +274,7 @@ export function TopBar(p: TopBarProps) {
         {hasSite && p.publishedAt && (
           <Tooltip label="Open published site">
             <Anchor href={`/s/${p.siteSlug}/`} target="_blank" rel="noopener">
-              <Button variant="light" size="xs" leftSection={<IconEye size={14} />} component="span">
+              <Button variant="default" size="xs" leftSection={<IconEye size={14} />} component="span">
                 View
               </Button>
             </Anchor>
