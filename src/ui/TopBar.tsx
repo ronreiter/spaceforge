@@ -217,24 +217,22 @@ export function TopBar(p: TopBarProps) {
         />
 
         <Box style={{ flex: 1, minWidth: 200 }}>
-          {/* When the model is idle-ready the selector already tells the
-            * user everything ("Gemma 4 E4B (default) · 4.5 GB · cached"),
-            * so suppress the redundant "… ready" line. The status stays
-            * visible for loading / error / progress states. */}
-          {p.statusKind !== 'ready' && (
-            <Text
-              size="xs"
-              c={statusColor}
-              style={{
-                fontFamily: 'var(--mantine-font-family-monospace)',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {p.status}
-            </Text>
-          )}
+          {/* In the idle-ready state the ModelSelector already names the
+            * model; drop the model-name prefix from the status so it
+            * reads as a bare "ready" signal instead of duplicating the
+            * selector. Loading / progress / error keep the full string. */}
+          <Text
+            size="xs"
+            c={statusColor}
+            style={{
+              fontFamily: 'var(--mantine-font-family-monospace)',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {p.statusKind === 'ready' ? '● ready' : p.status}
+          </Text>
           {p.progressPct !== undefined && p.progressPct >= 0 && p.progressPct < 100 && (
             <Progress
               value={p.progressPct}
