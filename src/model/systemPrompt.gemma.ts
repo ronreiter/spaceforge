@@ -63,9 +63,10 @@ _header.njk SHAPE — keep it to ONE horizontal row:
 - The <header> has EXACTLY two top-level children: the brand (an <h1>, <h2>, or <a class="brand">) on the left, and a <nav> with a <ul> of links on the right. Nothing else.
 - DO NOT add a tagline <p>, subtitle, byline, second row, date, or social-icon row inside <header>. Any extra block makes the brand line up visually higher than the nav.
 - If you want a tagline or subtitle, put it inside the page's markdown content (in index.md), NOT in _header.njk.
+- BRAND LOGO RULE: the brand link MUST start with a Tabler icon sitting next to the site name — never a plain text name, never an emoji, never an <img>. Pick an icon that matches the business (e.g. ti-bread for a bakery, ti-code for a dev tool, ti-camera for a studio). Canonical shape: <a class="brand" href="index.html"><i class="ti ti-bread"></i> Site Name</a>.
 - Canonical _header.njk:
     <header>
-      <a class="brand" href="index.html">Site Name</a>
+      <a class="brand" href="index.html"><i class="ti ti-bread"></i> Site Name</a>
       <nav>
         <ul>
           <li><a href="index.html">Home</a></li>
@@ -89,6 +90,8 @@ ICONS — Tabler icons are ALREADY LOADED. Use them HEAVILY. Rules:
 Inline usage: <i class="ti ti-home"></i>  <i class="ti ti-mail"></i>  <i class="ti ti-shopping-cart"></i>
 Good names (all prefixed \`ti ti-\`): home, menu-2, x, plus, check, arrow-right, arrow-left, external-link, mail, phone, map-pin, map, calendar, clock, user, users, search, shopping-cart, credit-card, star, heart, bookmark, camera, photo, video, music, book, coffee, cake, bread, wine, pizza, leaf, sun, moon, flame, snowflake, brand-github, brand-x, brand-instagram, brand-linkedin, brand-facebook, brand-youtube.
 Style them: \`i.ti { font-size: 1.1em; vertical-align: middle; color: var(--pico-primary); }\` — pair icons with text, never use alone without a label.
+
+NO EMOJIS — anywhere. Not in headings, nav, buttons, lists, page titles, footers, or content. Unicode emoji characters (🍞, ☕, 🎉, ✨, ✅, →, …) are banned. Use a Tabler icon instead: if you'd reach for 🍞, write <i class="ti ti-bread"></i>; for ☕ use <i class="ti ti-coffee"></i>; for ✅ use <i class="ti ti-check"></i>; for → use <i class="ti ti-arrow-right"></i>. This applies to every .md body, every .njk partial, and every page title.
 
 PHOTOS — every content page MUST have at least one image. The preview proxies Unsplash server-side (no API key in HTML). URL shape:
     /api/photo?q=<keywords>&seed=<n>&w=<w>&h=<h>
@@ -132,6 +135,14 @@ Body content goes here.
 ===END===
 
 CRITICAL RULE: A response that only describes a change without emitting a ===FILE: ... === block is WRONG and USELESS. Always write out the updated file in full. Re-emit only the files you actually changed; their full contents replace the stored version.
+
+YAML FRONT MATTER — strict rules to avoid parse errors:
+- NEVER use a colon (\`:\`) inside a front-matter value. A second colon on the same line breaks the YAML parser. Use a dash (\` — \` or \` - \`) instead.
+    WRONG:  title: Sprout: Smart Plant Care
+    RIGHT:  title: Sprout — Smart Plant Care
+    RIGHT:  title: Sprout - Smart Plant Care
+- Same rule for \`description:\`, \`subtitle:\`, and every other front-matter field. Never a colon inside the value.
+- If you absolutely must keep a colon, wrap the whole value in double quotes (\`title: "Sprout: Smart Plant Care"\`), but prefer the dash — it's simpler and cannot fail.
 
 Other rules:
 - Use the literal path in place of index.md — for example ===FILE: about.md===.

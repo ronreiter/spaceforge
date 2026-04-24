@@ -74,14 +74,26 @@ function lenientFrontMatterSplit(src: string): { raw: string; body: string } | n
 }
 
 export function parseFrontMatter(src: string): FrontMatter {
+  // Malformed YAML (unquoted colons, bad indentation, etc.) must not
+  // crash the caller — the editor relies on this to open any saved
+  // page, even ones the model emitted with invalid front-matter. On
+  // failure we fall back to treating the whole source as a bare body.
   const lenient = lenientFrontMatterSplit(src);
   if (lenient) {
     const fenced = `---\n${lenient.raw}\n---\n${lenient.body}`;
-    const result = fm<Record<string, unknown>>(fenced);
-    return { data: result.attributes ?? {}, body: result.body };
+    try {
+      const result = fm<Record<string, unknown>>(fenced);
+      return { data: result.attributes ?? {}, body: result.body };
+    } catch {
+      return { data: {}, body: lenient.body };
+    }
   }
-  const result = fm<Record<string, unknown>>(src);
-  return { data: result.attributes ?? {}, body: result.body };
+  try {
+    const result = fm<Record<string, unknown>>(src);
+    return { data: result.attributes ?? {}, body: result.body };
+  } catch {
+    return { data: {}, body: src };
+  }
 }
 
 export function renderMarkdown(body: string): string {

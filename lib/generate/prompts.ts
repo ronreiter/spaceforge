@@ -91,12 +91,27 @@ General conventions:
 - Internal links in .md use .html targets (e.g. href="about.html") so the published site resolves cleanly.
 - Do not repeat or rewrite existing files. Only output the file you were asked for.
 
+YAML front-matter — STRICT: never put a colon (\`:\`) inside a value. A second colon on the same line breaks YAML parsing and the page fails to render.
+  WRONG:  title: Sprout: Smart Plant Care
+  RIGHT:  title: Sprout — Smart Plant Care
+  RIGHT:  title: Sprout - Smart Plant Care
+Use a dash (em-dash \`—\` or hyphen \`-\`) instead of a colon in title/description/subtitle and every other field. If a colon is unavoidable, wrap the value in double quotes ("..."), but prefer the dash.
+
 Icons — USE THEM LIBERALLY:
 - Tabler icons, inline HTML: <i class="ti ti-home"></i>. No extra classes or wrappers needed — the Tabler webfont is injected automatically at publish time.
 - Pair icons with their label: nav items, buttons, bullet-point lists, contact blocks, stat badges.
 - Names to draw from: ${ICON_PALETTE}
 - Example hero CTA: <a href="menu.html" class="cta"><i class="ti ti-arrow-right"></i> See the menu</a>
 - Example contact block: <p><i class="ti ti-mail"></i> hello@example.com &nbsp;&nbsp; <i class="ti ti-map-pin"></i> 12 Main St</p>
+
+Brand logo — REQUIRED in every _header.njk:
+- The brand link must begin with a Tabler icon next to the site name. Never plain text only, never an emoji, never an <img>. Pick an icon that matches the business.
+- Canonical: <a class="brand" href="index.html"><i class="ti ti-bread"></i> Site Name</a>
+
+No emojis — ANYWHERE:
+- Do not use Unicode emoji characters (🍞, ☕, 🎉, ✨, ✅, →, …) in any file — not in headings, nav, buttons, lists, titles, footers, or content.
+- Use a Tabler icon as a replacement: 🍞 → ti-bread, ☕ → ti-coffee, ✅ → ti-check, → → ti-arrow-right, ★ → ti-star.
+- Applies to .md bodies, .njk partials, page titles, and alt text alike.
 
 Stock photography — USE IT HEAVILY:
 - Server-side Unsplash proxy at /api/photo. Shape: /api/photo?q=<keywords>&seed=<n>&w=<w>&h=<h>.
@@ -119,7 +134,9 @@ Decide:
   complete = true if the site is finished — every page renders standalone, every include/link resolves, every content page has icons + at least one image, and the content matches the chosen template's aesthetic.
   complete = false otherwise. Set feedback to a short specific note the next executor step will see, and optionally add_files with any missing pieces.
 
-Specifically flag in feedback when any of these are missing:
+Specifically flag in feedback when any of these are missing or wrong:
+  - The _header.njk brand link doesn't start with a Tabler icon (<a class="brand">…<i class="ti ti-*"></i> Name…</a>).
+  - Any Unicode emoji character (🍞, ☕, 🎉, ✨, ✅, →, …) appears in a .md or .njk file — all emojis must be replaced with <i class="ti ti-*"></i>.
   - No <i class="ti ti-*"></i> icons in nav, CTAs, or key list items.
   - No /api/photo images on a content page that would benefit from a hero.
   - A partial included by _layout.njk that doesn't exist yet.
