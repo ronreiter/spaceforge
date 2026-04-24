@@ -175,8 +175,9 @@ export function TopBar(p: TopBarProps) {
           <Group gap={8} wrap="nowrap" align="center" style={{ minWidth: 0 }}>
             <Box style={{ minWidth: 0 }}>
               <Text
-                fw={600}
-                size="sm"
+                fw={700}
+                size="md"
+                lh={1.15}
                 style={{
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
@@ -216,18 +217,24 @@ export function TopBar(p: TopBarProps) {
         />
 
         <Box style={{ flex: 1, minWidth: 200 }}>
-          <Text
-            size="xs"
-            c={statusColor}
-            style={{
-              fontFamily: 'var(--mantine-font-family-monospace)',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {p.status}
-          </Text>
+          {/* When the model is idle-ready the selector already tells the
+            * user everything ("Gemma 4 E4B (default) · 4.5 GB · cached"),
+            * so suppress the redundant "… ready" line. The status stays
+            * visible for loading / error / progress states. */}
+          {p.statusKind !== 'ready' && (
+            <Text
+              size="xs"
+              c={statusColor}
+              style={{
+                fontFamily: 'var(--mantine-font-family-monospace)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {p.status}
+            </Text>
+          )}
           {p.progressPct !== undefined && p.progressPct >= 0 && p.progressPct < 100 && (
             <Progress
               value={p.progressPct}
@@ -251,15 +258,6 @@ export function TopBar(p: TopBarProps) {
           </ActionIcon>
         </Tooltip>
 
-        {hasSite && p.publishedAt && (
-          <Tooltip label="Open published site">
-            <Anchor href={`/s/${p.siteSlug}/`} target="_blank" rel="noopener">
-              <Button variant="light" size="xs" leftSection={<IconEye size={14} />} component="span">
-                View
-              </Button>
-            </Anchor>
-          </Tooltip>
-        )}
         {hasSite &&
           (p.publishedAt ? (
             <Badge size="xs" color="green">
@@ -270,6 +268,15 @@ export function TopBar(p: TopBarProps) {
               draft
             </Badge>
           ))}
+        {hasSite && p.publishedAt && (
+          <Tooltip label="Open published site">
+            <Anchor href={`/s/${p.siteSlug}/`} target="_blank" rel="noopener">
+              <Button variant="light" size="xs" leftSection={<IconEye size={14} />} component="span">
+                View
+              </Button>
+            </Anchor>
+          </Tooltip>
+        )}
         {hasSite && canWrite && (
           <PublishSplitButton
             siteId={p.siteId ?? null}
