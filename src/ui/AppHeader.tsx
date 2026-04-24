@@ -13,6 +13,7 @@ import {
 import { IconArrowLeft } from '@tabler/icons-react';
 import Link from 'next/link';
 import { AppBrand } from './AppBrand';
+import { UserMenu } from './UserMenu';
 
 // Shared AppShell.Header used by the dashboard-level pages (Dashboard,
 // Trash, Team). Editor's TopBar remains a separate richer component since
@@ -29,18 +30,23 @@ import { AppBrand } from './AppBrand';
 export const APP_HEADER_HEIGHT = 56;
 
 export type AppHeaderProps = {
-  user: { email: string };
+  user: { email: string; name?: string | null };
+  /** True when the request was served by AUTH_DRIVER=dev. The user menu
+   *  disables "Sign out" in that mode because there's nothing to sign
+   *  out of — middleware always treats every request as DEV_USER. */
+  isDevAuth: boolean;
   /** Show "Back to dashboard" arrow on the far left. Default false — the
    *  Dashboard page suppresses it; Trash/Team enable it. */
   showBackToDashboard?: boolean;
   /** Small badge rendered next to the brand (e.g. "Trash", "Team"). */
   badge?: { label: string; icon?: ReactNode; color?: string };
-  /** Nav links rendered between the brand and the user email. */
+  /** Nav links rendered between the brand and the user menu. */
   nav?: ReactNode;
 };
 
 export function AppHeader({
   user,
+  isDevAuth,
   showBackToDashboard = false,
   badge,
   nav,
@@ -74,9 +80,7 @@ export function AppHeader({
           </Group>
           <Group gap="md" wrap="nowrap">
             {nav}
-            <Text size="sm" c="dimmed">
-              {user.email}
-            </Text>
+            <UserMenu user={user} isDevAuth={isDevAuth} />
           </Group>
         </Group>
       </Container>

@@ -39,9 +39,11 @@ const MANAGEABLE_ROLES: { value: TeamRole; label: string }[] = [
 export function TeamView({
   user,
   members: initial,
+  isDevAuth,
 }: {
   user: AuthedUser;
   members: TeamMemberRow[];
+  isDevAuth: boolean;
 }) {
   const [members, setMembers] = useState(initial);
   const [open, setOpen] = useState(false);
@@ -130,6 +132,7 @@ export function TeamView({
     <AppShell header={{ height: 56 }} padding="md">
       <AppHeader
         user={user}
+        isDevAuth={isDevAuth}
         showBackToDashboard
         badge={{ label: 'Team', icon: <IconUsers size={12} /> }}
       />

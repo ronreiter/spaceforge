@@ -26,9 +26,11 @@ import { AppHeader } from '../../../src/ui/AppHeader';
 export function TrashView({
   user,
   sites: initial,
+  isDevAuth,
 }: {
   user: AuthedUser;
   sites: SiteSummary[];
+  isDevAuth: boolean;
 }) {
   const [sites, setSites] = useState(initial);
   const [busy, setBusy] = useState<string | null>(null);
@@ -82,6 +84,7 @@ export function TrashView({
     <AppShell header={{ height: 56 }} padding="md">
       <AppHeader
         user={user}
+        isDevAuth={isDevAuth}
         showBackToDashboard
         badge={{ label: 'Trash' }}
       />
