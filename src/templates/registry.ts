@@ -9,6 +9,11 @@ import { sunsetTemplate } from './bundles/sunset';
 import { botanicalTemplate } from './bundles/botanical';
 import { zineTemplate } from './bundles/zine';
 import { synthwaveTemplate } from './bundles/synthwave';
+import { editorialTemplate } from './bundles/editorial';
+import { studioTemplate } from './bundles/studio';
+import { paperTemplate } from './bundles/paper';
+import { rivieraTemplate } from './bundles/riviera';
+import { vaultTemplate } from './bundles/vault';
 
 export type TemplateBundle = {
   id: string;
@@ -32,7 +37,13 @@ export const TEMPLATES: TemplateBundle[] = [
     files: {},
   },
   journalTemplate,
+  editorialTemplate,
+  studioTemplate,
+  rivieraTemplate,
+  paperTemplate,
   gazetteTemplate,
+  vaultTemplate,
+  noirTemplate,
   orbitTemplate,
   sunsetTemplate,
   botanicalTemplate,
@@ -41,7 +52,6 @@ export const TEMPLATES: TemplateBundle[] = [
   zineTemplate,
   pastelTemplate,
   synthwaveTemplate,
-  noirTemplate,
 ];
 
 export function getTemplate(id: string): TemplateBundle | undefined {

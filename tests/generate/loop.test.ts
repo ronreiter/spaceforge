@@ -80,7 +80,7 @@ describe('runGenerationLoop', () => {
       userPrompt: 'A portfolio for Ana',
       models: makeModels({
         plan: {
-          summary: 'Ana portfolio',
+          summary: 'Ana portfolio', templateId: 'journal',
           files: [
             { path: '_layout.njk', intent: 'base layout' },
             { path: 'index.md', intent: 'home page' },
@@ -130,7 +130,7 @@ describe('runGenerationLoop', () => {
       userPrompt: 'A bakery site',
       models: makeModels({
         plan: {
-          summary: 'Bakery',
+          summary: 'Bakery', templateId: 'riviera',
           files: [{ path: 'index.md', intent: 'home' }],
         },
         verdicts: [
@@ -157,7 +157,7 @@ describe('runGenerationLoop', () => {
       userPrompt: 'X',
       models: makeModels({
         plan: {
-          summary: 'X',
+          summary: 'X', templateId: 'custom',
           files: Array.from({ length: 10 }, (_, i) => ({
             path: `page-${i}.md`,
             intent: `page ${i}`,
@@ -181,7 +181,7 @@ describe('runGenerationLoop', () => {
       userPrompt: 'X',
       models: makeModels({
         plan: {
-          summary: 'X',
+          summary: 'X', templateId: 'custom',
           files: [{ path: 'index.md', intent: 'home' }],
         },
         verdicts: [{ complete: false, feedback: '', add_files: [] }],
@@ -199,7 +199,7 @@ describe('runGenerationLoop', () => {
       userPrompt: 'X',
       models: makeModels({
         plan: {
-          summary: 'X',
+          summary: 'X', templateId: 'custom',
           files: [{ path: 'index.md', intent: 'home' }],
         },
         verdicts: [
@@ -226,7 +226,7 @@ describe('runGenerationLoop', () => {
       userPrompt: 'X',
       models: makeModels({
         plan: {
-          summary: 'X',
+          summary: 'X', templateId: 'custom',
           files: [{ path: 'index.md', intent: 'home' }],
         },
         verdicts: [
@@ -248,5 +248,52 @@ describe('runGenerationLoop', () => {
 
     // Only one of the three add_files should have been picked up.
     expect(result.filesWritten).toEqual(['index.md', 'a.md']);
+  });
+
+  it('calls applyTemplate with the planner-chosen templateId', async () => {
+    const applied: string[] = [];
+    await runGenerationLoop({
+      siteId: 'site-7',
+      userPrompt: 'A bright café site',
+      models: makeModels({
+        plan: {
+          summary: 'Café',
+          templateId: 'riviera',
+          files: [{ path: 'index.md', intent: 'home' }],
+        },
+        verdicts: [{ complete: true, feedback: '', add_files: [] }],
+      }),
+      applyTemplate: async (id) => {
+        applied.push(id);
+      },
+      onEvent: () => {},
+    });
+    expect(applied).toEqual(['riviera']);
+  });
+
+  it('passes templateId through to writeFile calls', async () => {
+    const seen: string[] = [];
+    await runGenerationLoop({
+      siteId: 'site-8',
+      userPrompt: 'X',
+      models: {
+        async plan() {
+          return {
+            summary: 'S',
+            templateId: 'studio',
+            files: [{ path: 'index.md', intent: 'home' }],
+          };
+        },
+        async writeFile({ templateId }) {
+          seen.push(templateId);
+          return 'body';
+        },
+        async review() {
+          return { complete: true, feedback: '', add_files: [] };
+        },
+      },
+      onEvent: () => {},
+    });
+    expect(seen).toEqual(['studio']);
   });
 });

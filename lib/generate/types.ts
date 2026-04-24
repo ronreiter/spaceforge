@@ -20,12 +20,17 @@ export const planSchema = z.object({
   summary: z
     .string()
     .describe('A one-paragraph summary of the site being built.'),
+  templateId: z
+    .string()
+    .describe(
+      'Id of a pre-made visual template from the catalog (preferred), or "custom" only if no template fits. Default to picking a template.',
+    ),
   files: z
     .array(plannedFileSchema)
     .min(1)
     .max(20)
     .describe(
-      'Files to generate in order. Start with layout partials, then content pages, then styles.',
+      'Files to generate in order. Start with layout partials, then content pages. Skip styles.css when a pre-made template is chosen — the template provides it.',
     ),
 });
 

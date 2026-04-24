@@ -28,6 +28,7 @@ export type ModelCalls = {
   plan(opts: { userPrompt: string }): Promise<Plan>;
   writeFile(opts: {
     siteSummary: string;
+    templateId: string;
     manifest: FileEntry[];
     feedback: string[];
     file: PlannedFile;
@@ -64,10 +65,10 @@ export function gatewayModelCalls(cfg: ModelConfig = {}): ModelCalls {
       return object;
     },
 
-    async writeFile({ siteSummary, manifest, feedback, file }) {
+    async writeFile({ siteSummary, templateId, manifest, feedback, file }) {
       const { text } = await generateText({
         model: executor,
-        system: executorSystem({ siteSummary, manifest, feedback }),
+        system: executorSystem({ siteSummary, templateId, manifest, feedback }),
         prompt: executorPrompt(file),
       });
       return stripCodeFence(text);
