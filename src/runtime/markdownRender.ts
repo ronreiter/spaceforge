@@ -134,6 +134,7 @@ const DEFAULT_LAYOUT = '_layout.njk';
 export function renderMarkdownPage(
   path: string,
   files: Record<string, string>,
+  siteContext: { slug?: string; name?: string } = {},
 ): string {
   const src = files[path] ?? '';
   const { data, body } = parseFrontMatter(src);
@@ -141,6 +142,7 @@ export function renderMarkdownPage(
   const preContext = {
     ...data,
     page: { path, url: outputPath(path) },
+    site: siteContext,
   };
   const processedBody = preprocessBody(body, files, preContext);
   const content = renderMarkdown(processedBody);
@@ -151,6 +153,7 @@ export function renderMarkdownPage(
     ...data,
     content,
     page: { path, url: outputPath(path) },
+    site: siteContext,
   };
 
   if (!(layoutName in files)) {

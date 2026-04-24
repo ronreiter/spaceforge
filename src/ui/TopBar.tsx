@@ -21,6 +21,7 @@ import {
   IconCheck,
   IconChevronDown,
   IconEye,
+  IconForms,
   IconHistory,
   IconRocket,
   IconRocketOff,
@@ -29,6 +30,7 @@ import {
   IconMoon,
   IconTrash,
 } from '@tabler/icons-react';
+import Link from 'next/link';
 import { ModelSelector } from './ModelSelector';
 import { AppBrand } from './AppBrand';
 import { ShareSiteModal } from './ShareSiteModal';
@@ -282,6 +284,20 @@ export function TopBar(p: TopBarProps) {
             <Anchor href={`/s/${p.siteSlug}/`} target="_blank" rel="noopener">
               <Button variant="default" size="xs" leftSection={<IconEye size={14} />} component="span">
                 View
+              </Button>
+            </Anchor>
+          </Tooltip>
+        )}
+        {hasSite && p.siteId && (
+          <Tooltip label="Form submissions">
+            <Anchor component={Link} href={`/sites/${p.siteId}/forms`} underline="never">
+              <Button
+                variant="default"
+                size="xs"
+                leftSection={<IconForms size={14} />}
+                component="span"
+              >
+                Forms
               </Button>
             </Anchor>
           </Tooltip>

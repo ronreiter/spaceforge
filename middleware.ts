@@ -39,6 +39,7 @@ const publicPatterns = [
   /^\/sign-up(\/.*)?$/,
   /^\/s\/.*/,
   /^\/api\/photo(\/.*)?$/,
+  /^\/api\/forms\/.*/, // public form submission endpoint
   /^\/api\/webhooks\/.*/,
   /^\/_blob\/.*/,
   /^\/_next\/.*/,
@@ -53,16 +54,24 @@ export default async function middleware(req: NextRequest) {
   // Host-based custom-domain rewrite. Runs before any auth gating so
   // public sites don't bounce to /sign-in. Only fires for hostnames
   // outside APP_HOSTS — the common case (apex/app host) stays a pure
-  // cache-friendly passthrough with no DB read.
+  // cache-friendly passthrough with no DB read. /api/* paths are
+  // skipped so forms and the Unsplash proxy keep working under a
+  // custom domain.
   const host = req.headers.get('host')?.toLowerCase() ?? '';
-  if (host && !isAppHost(host)) {
+  const path = req.nextUrl.pathname;
+  if (
+    host &&
+    !isAppHost(host) &&
+    !path.startsWith('/api/') &&
+    !path.startsWith('/_next/')
+  ) {
     try {
       const slug = await lookupSlugByDomain(host);
       if (slug) {
         const url = req.nextUrl.clone();
         // Rewrite preserves the original path and query. Root of the
         // custom domain maps to the root of the published site.
-        url.pathname = `/s/${slug}${req.nextUrl.pathname === '/' ? '' : req.nextUrl.pathname}`;
+        url.pathname = `/s/${slug}${path === '/' ? '' : path}`;
         return NextResponse.rewrite(url);
       }
     } catch (err) {
@@ -100,6 +109,11 @@ export default async function middleware(req: NextRequest) {
   // undefined for custom call sites.
   return handler(req, {} as never);
 }
+
+// Run on the Node.js runtime so `pg`/`drizzle`/`node:crypto` (via the
+// custom-domain lookup and Clerk server imports) are usable. On Vercel
+// this is backed by Fluid Compute, not the edge runtime.
+export const runtime = 'nodejs';
 
 export const config = {
   matcher: [

@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import {
   Anchor,
   Badge,
@@ -67,7 +66,6 @@ function LandingHeader({ signedIn }: { signedIn: boolean }) {
         </Group>
         <Group gap="sm" wrap="nowrap">
           <Anchor
-            component={Link}
             href="https://github.com/ronreiter/spaceforge"
             c="dimmed"
             size="sm"
@@ -79,7 +77,7 @@ function LandingHeader({ signedIn }: { signedIn: boolean }) {
             </Group>
           </Anchor>
           <Button
-            component={Link}
+            component="a"
             href={signedIn ? '/dashboard' : '/sign-in'}
             size="xs"
             variant="default"
@@ -133,7 +131,7 @@ function Hero({ ctaHref, ctaLabel }: { ctaHref: string; ctaLabel: string }) {
 
         <Group gap="sm" mt="md">
           <Button
-            component={Link}
+            component="a"
             href={ctaHref}
             size="lg"
             color="neon"
@@ -426,7 +424,7 @@ function FinalCta({ ctaHref, ctaLabel }: { ctaHref: string; ctaLabel: string }) 
               that it runs offline.
             </Text>
             <Button
-              component={Link}
+              component="a"
               href={ctaHref}
               size="lg"
               color="neon"
@@ -455,7 +453,6 @@ function LandingFooter() {
           </Group>
           <Group gap="md" wrap="nowrap">
             <Anchor
-              component={Link}
               href="https://github.com/ronreiter/spaceforge"
               c="dimmed"
               size="xs"
@@ -463,7 +460,7 @@ function LandingFooter() {
               GitHub
             </Anchor>
             <Divider orientation="vertical" />
-            <Anchor component={Link} href="/sign-in" c="dimmed" size="xs">
+            <Anchor href="/sign-in" c="dimmed" size="xs">
               Sign in
             </Anchor>
           </Group>

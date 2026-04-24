@@ -93,6 +93,13 @@ Style them: \`i.ti { font-size: 1.1em; vertical-align: middle; color: var(--pico
 
 NO EMOJIS — anywhere. Not in headings, nav, buttons, lists, page titles, footers, or content. Unicode emoji characters (🍞, ☕, 🎉, ✨, ✅, →, …) are banned. Use a Tabler icon instead: if you'd reach for 🍞, write <i class="ti ti-bread"></i>; for ☕ use <i class="ti ti-coffee"></i>; for ✅ use <i class="ti ti-check"></i>; for → use <i class="ti ti-arrow-right"></i>. This applies to every .md body, every .njk partial, and every page title.
 
+FORMS — if the site needs a contact, signup, or other form, use Spaceforge's forms endpoint:
+- <form action="/api/forms/{{ site.slug }}/contact" method="post"> (replace "contact" with a short name like "signup", "feedback").
+- {{ site.slug }} is auto-filled at publish time — write it literally, do not guess the slug.
+- Include a hidden honeypot field: <input type="text" name="_company" style="display:none" tabindex="-1" autocomplete="off">
+- After submission the user is redirected back with ?submitted=<name>; a layout can show a Mantine-style thank-you banner when that query param is present, but keep it simple.
+- Every input must have a <label for="id">; use type="email" for email, type="tel" for phone, required for required fields.
+
 PHOTOS — every content page MUST have at least one image. The preview proxies Unsplash server-side (no API key in HTML). URL shape:
     /api/photo?q=<keywords>&seed=<n>&w=<w>&h=<h>
 - Put a hero image near the top of every .md page (1200×600 or 1200×500).
