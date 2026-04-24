@@ -133,6 +133,21 @@ export const chatMessages = pgTable(
   (t) => [index('chat_messages_site_idx').on(t.siteId, t.id)],
 );
 
+// Custom domains pointed at a site. One domain maps to one site; the
+// middleware reads this table to translate `bakery.com` → /s/<slug>.
+// Attaching the domain on Vercel (or wherever it terminates) is a
+// separate manual step — this table only records the mapping.
+export const siteDomains = pgTable(
+  'site_domains',
+  {
+    domain: text('domain').primaryKey(), // normalized lowercase, e.g. "bakery.com"
+    siteId: uuid('site_id').notNull().references(() => sites.id, { onDelete: 'cascade' }),
+    addedBy: text('added_by').notNull().references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('site_domains_site_idx').on(t.siteId)],
+);
+
 // Table type helpers for convenient inference.
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
